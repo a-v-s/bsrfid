@@ -86,8 +86,8 @@ will be limited due missing hardware.
 #define MFRC_TypeBReg           (0x1E)
 #define MFRC_SerialSpeedReg     (0x1F)
 
-#define MFRC_CRCResultReg       (0x21)
-#define MFRC_CRCResultReg       (0x22)
+#define MFRC_CRCResultRegMSB    (0x21)
+#define MFRC_CRCResultRegLSB    (0x22)
 #define MFRC_GsNOffReg          (0x23)
 #define MFRC_ModWidthReg        (0x24)
 #define MFRC_TxBitPhaseReg      (0x25)

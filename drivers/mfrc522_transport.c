@@ -65,10 +65,36 @@ int mfrc522_recv(uint8_t reg, uint8_t *data, size_t amount){
     }
     if (!mfrc_transport_send) return -1;
     if (!mfrc_transport_recv) return -1;
-    result = mfrc_transport_send(&addr, 1, true);
-    if (result) return result;
-    result = mfrc_transport_recv(data, amount, false);
-    if (result) return result;
+
+    
+
+
+    
+
+    // Look at the data sheet again. 
+
+    // for spi mode: 
+    // send the address
+    // memset(buffer, reg (==MFRC_FIFODataReg) , sizeof(buffer)) 
+    // as tranceive, thus reusing the buffer 
+    // then we get the fifo in buffer
+
+    // might want a running register as well 
+    // for example the MFRC_CRCResultRegMSB / MFRC_CRCResultRegLSB 
+    // Also to verify the reset values
+
+    // For I²C, we can keep reading from the same address, (for fifo)
+
+    // For UART, we need to keep reading to keep sending the address.
+    // wondering, do we need to write then wait for read to complete
+    // or can we full duplex write 64 times MFRC_FIFODataReg while reading?
+
+        
+    // To work this out, we need to change our send and recv functions      
+    // We need to add a tranceive function for efficient SPI operation
+
+    
+
 
 }
 
