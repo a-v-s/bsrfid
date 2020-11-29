@@ -1,10 +1,10 @@
 /******************************************************************************\
 
-File:         mfrc522_transport.c
+File:         mfrc52x_transport.c
 Author:       André van Schoubroeck
 License:      MIT
 
-This implements the transport protocols for RC522 family of RFID reader ICs.
+This implements the transport protocols for MFRC52x family of RFID reader ICs.
 
 * SPI
 * I²C
@@ -38,7 +38,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 *******************************************************************************/
 
-#include "mfrc522_transport.h"
+#include "mfrc52x_transport.h"
 
 static mfrc_transport_t m_transport = mfrc_transport_undefined;
 static mfrc_transport_send_f mfrc_send = NULL;
@@ -49,49 +49,47 @@ static mfrc_transport_recv_f mfrc_recv = NULL;
 int mfrc522_recv(uint8_t reg, uint8_t *data, size_t amount){
     uint8_t addr;
     int result = 0;
-    switch(m_transport) {
-        case mfrc_transport_spi:
-            addr = (reg << MFRC522_SPI_REG_SHIFT) | MFRC522_DIR_RECV;
-            break;
-        case mfrc_transport_i2c:
-            addr = reg;
-            break;
-        case mfrc_transport_uart:
-            addr = reg | MFRC522_DIR_RECV;
-            break;
-        default:
-            return -1;
-        }
-    }
     if (!mfrc_transport_send) return -1;
     if (!mfrc_transport_recv) return -1;
 
+    if (reg < 0x40) {
+        switch(m_transport) {
+            case mfrc_transport_spi:
+                addr = (reg << MFRC522_SPI_REG_SHIFT) | MFRC522_DIR_RECV;
+                memset(data, addr, amount);
+                break;
+            case mfrc_transport_i2c:
+                addr = reg;
+                break;
+            case mfrc_transport_uart:
+                addr = reg | MFRC522_DIR_RECV;
+                memset(data, addr, amount);
+                break;
+            default:
+                return -1;
+            }
+        }
+    } else {
+        // invalid address specified... but we're adding a feature here, 
+        // We'll read sequentially read the registers 
+        if (((reg&0x3f) + amount) > 0x40 ) return -1; 
+
+        for (int i = 0; i < amount; i++) {
+            switch(m_transport) {
+                case mfrc_transport_spi:
+                    addr = (((reg&0x3f)+i) << MFRC522_SPI_REG_SHIFT) | MFRC522_DIR_RECV;
+                    break;
+                case mfrc_transport_uart:
+                    addr = ((reg&0x3f)+i) | MFRC522_DIR_RECV;
+                    break;
+            }
+            data[i] = addr;
+        }
+    }
+
     
 
-
-    
-
-    // Look at the data sheet again. 
-
-    // for spi mode: 
-    // send the address
-    // memset(buffer, reg (==MFRC_FIFODataReg) , sizeof(buffer)) 
-    // as tranceive, thus reusing the buffer 
-    // then we get the fifo in buffer
-
-    // might want a running register as well 
-    // for example the MFRC_CRCResultRegMSB / MFRC_CRCResultRegLSB 
-    // Also to verify the reset values
-
-    // For I²C, we can keep reading from the same address, (for fifo)
-
-    // For UART, we need to keep reading to keep sending the address.
-    // wondering, do we need to write then wait for read to complete
-    // or can we full duplex write 64 times MFRC_FIFODataReg while reading?
-
-        
-    // To work this out, we need to change our send and recv functions      
-    // We need to add a tranceive function for efficient SPI operation
+    // Now let's have a trasceive function
 
     
 

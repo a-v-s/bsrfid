@@ -1,6 +1,6 @@
 /******************************************************************************\
 
-File:         mfrc522.h
+File:         rc52x.h
 Author:       André van Schoubroeck
 License:      MIT
 
@@ -86,8 +86,8 @@ will be limited due missing hardware.
 #define MFRC_TypeBReg           (0x1E)
 #define MFRC_SerialSpeedReg     (0x1F)
 
-#define MFRC_CRCResultRegMSB    (0x21)
-#define MFRC_CRCResultRegLSB    (0x22)
+#define MFRC_CRCResultReg_Hi    (0x21)
+#define MFRC_CRCResultReg_Lo    (0x22)
 #define MFRC_GsNOffReg          (0x23)
 #define MFRC_ModWidthReg        (0x24)
 #define MFRC_TxBitPhaseReg      (0x25)
@@ -99,8 +99,8 @@ will be limited due missing hardware.
 #define MFRC_TPrescalerReg      (0x2B)
 #define MFRC_TReloadReg         (0x2C)
 #define MFRC_TReloadReg         (0x2D)
-#define MFRC_TCounterValReg     (0x2E)
-#define MFRC_TCounterValReg     (0x2F)
+#define MFRC_TCounterVal_Hi     (0x2E)
+#define MFRC_TCounterVal_Lo     (0x2F)
 
 #define MFRC_TestSel1Reg        (0x31)
 #define MFRC_TestSel2Reg        (0x32)
@@ -113,6 +113,17 @@ will be limited due missing hardware.
 #define MFRC_TestDAC1Reg        (0x39)
 #define MFRC_TestDAC2Reg        (0x3A)
 #define MFRC_TestADCReg         (0x3B)
+
+
+//------------------------------------------------------------------------------
+// Register Helper
+// -----------------------------------------------------------------------------
+// Define sequential mode and 16 bit registers. (NB Big Endian) 
+// -----------------------------------------------------------------------------
+
+#define MFRC_SequentialAddr     (0x40)
+#define MFRC_CRCResultReg       (MFRC_SequentialAddr + MFRC_CRCResultReg_Hi)
+#define MFRC_TCounterVal        (MFRC_SequentialAddr + MFRC_TCounterVal_Hi)
 
 
 //------------------------------------------------------------------------------
