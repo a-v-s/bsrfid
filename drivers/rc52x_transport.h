@@ -38,13 +38,20 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 *******************************************************************************/
 
+#include <stdlib.h>
+#include <stdint.h>
+#include <stdbool.h>
+
+#ifndef __rc52x_transport_h__
+#define __rc52x_transport_h__
 
 #define MFRC522_DIR_RECV        (0x80)
 #define MFRC522_DIR_SEND        (0x00)
 #define MFRC522_SPI_REG_SHIFT   (1) 
 
-typedef void(mfrc_transport_send_f*)(uint8_t *data, size_t amount, bool nostop);
-typedef void(mfrc_transport_recv_f*)(uint8_t *data, size_t amount, bool nostop);
+typedef int(*mfrc_transport_transmit_f)(uint8_t *data, size_t amount, bool nostop);
+typedef int(*mfrc_transport_recveive_f)(uint8_t *data, size_t amount, bool nostop);
+typedef int(*mfrc_transport_transceive_f)(uint8_t *data, size_t amount);
 
 typedef enum {
     mfrc_transport_undefined,
@@ -56,8 +63,6 @@ typedef enum {
 } mfrc_transport_t;
 
 
-int mfrc522_recv(uint8_t reg, uint8_t *data, size_t amount);
-int mfrc522_send(uint8_t reg, uint8_t *data, size_t amount);
 
 
-
+#endif //  __rc52x_transport_h__

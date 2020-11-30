@@ -48,6 +48,24 @@ will be limited due missing hardware.
 #ifndef _MFCR522_H_
 #define _MFCR522_H_
 
+
+
+#include "rc52x_transport.h"
+
+typedef struct {
+	mfrc_transport_t transport;
+	mfrc_transport_transmit_f transmit;
+	mfrc_transport_recveive_f receive;
+	mfrc_transport_transceive_f transceive;
+} rc52x_t;
+
+
+
+
+
+
+
+
 //------------------------------------------------------------------------------
 // Regisers
 // -----------------------------------------------------------------------------
@@ -55,64 +73,64 @@ will be limited due missing hardware.
 // may be reserved on some of these chips.
 // -----------------------------------------------------------------------------
 
-#define MFRC_CommandReg         (0x01)
-#define MFRC_ComlEnReg          (0x02)
-#define MFRC_DivlEnReg          (0x03)
-#define MFRC_ComIrqReg          (0x04)
-#define MFRC_DivIrqReg          (0x05)
-#define MFRC_ErrorReg           (0x06)
-#define MFRC_Status1Reg         (0x07)
-#define MFRC_Status2Reg         (0x08)
-#define MFRC_FIFODataReg        (0x09)
-#define MFRC_FIFOLevelReg       (0x0A)
-#define MFRC_WaterLevelReg      (0x0B)
-#define MFRC_ControlReg         (0x0C)
-#define MFRC_BitFramingReg      (0x0D)
-#define MFRC_CollReg            (0x0E)
+#define MFRC_REG_CommandReg         (0x01)
+#define MFRC_REG_ComlEnReg         	(0x02)
+#define MFRC_REG_DivlEnReg          (0x03)
+#define MFRC_REG_ComIrqReg          (0x04)
+#define MFRC_REG_DivIrqReg          (0x05)
+#define MFRC_REG_ErrorReg           (0x06)
+#define MFRC_REG_Status1Reg         (0x07)
+#define MFRC_REG_Status2Reg         (0x08)
+#define MFRC_REG_FIFODataReg        (0x09)
+#define MFRC_REG_FIFOLevelReg       (0x0A)
+#define MFRC_REG_WaterLevelReg      (0x0B)
+#define MFRC_REG_ControlReg         (0x0C)
+#define MFRC_REG_BitFramingReg      (0x0D)
+#define MFRC_REG_CollReg            (0x0E)
 
-#define MFRC_ModeReg            (0x11) 
-#define MFRC_TxModeReg          (0x12) 
-#define MFRC_RxModeReg          (0x13)
-#define MFRC_TxControlReg       (0x14)
-#define MFRC_TxASKReg           (0x15)
-#define MFRC_TxSelReg           (0x16)
-#define MFRC_RxSelReg           (0x17)
-#define MFRC_RxThresholdReg     (0x18)
-#define MFRC_DemodReg           (0x19)
-#define MFRC_FelNFC1Reg         (0x1A)
-#define MFRC_FelNFC2Reg         (0x1B)
-#define MFRC_MfTxReg            (0x1C)
-#define MFRC_MfRxReg            (0x1D)
-#define MFRC_TypeBReg           (0x1E)
-#define MFRC_SerialSpeedReg     (0x1F)
+#define MFRC_REG_ModeReg            (0x11)
+#define MFRC_REG_TxModeReg          (0x12)
+#define MFRC_REG_RxModeReg          (0x13)
+#define MFRC_REG_TxControlReg       (0x14)
+#define MFRC_REG_TxASKReg           (0x15)
+#define MFRC_REG_TxSelReg           (0x16)
+#define MFRC_REG_RxSelReg           (0x17)
+#define MFRC_REG_RxThresholdReg     (0x18)
+#define MFRC_REG_DemodReg           (0x19)
+#define MFRC_REG_FelNFC1Reg         (0x1A)
+#define MFRC_REG_FelNFC2Reg         (0x1B)
+#define MFRC_REG_MfTxReg            (0x1C)
+#define MFRC_REG_MfRxReg            (0x1D)
+#define MFRC_REG_TypeBReg           (0x1E)
+#define MFRC_REG_SerialSpeedReg     (0x1F)
 
-#define MFRC_CRCResultReg_Hi    (0x21)
-#define MFRC_CRCResultReg_Lo    (0x22)
-#define MFRC_GsNOffReg          (0x23)
-#define MFRC_ModWidthReg        (0x24)
-#define MFRC_TxBitPhaseReg      (0x25)
-#define MFRC_RFCfgReg           (0x26)
-#define MFRC_GsNOnReg           (0x27)
-#define MFRC_CWGsPReg           (0x28)
-#define MFRC_ModGsPReg          (0x29)
-#define MFRC_TModeReg           (0x2A)
-#define MFRC_TPrescalerReg      (0x2B)
-#define MFRC_TReloadReg         (0x2C)
-#define MFRC_TReloadReg         (0x2D)
-#define MFRC_TCounterVal_Hi     (0x2E)
-#define MFRC_TCounterVal_Lo     (0x2F)
+#define MFRC_REG_CRCResultReg_Hi    (0x21)
+#define MFRC_REG_CRCResultReg_Lo    (0x22)
+#define MFRC_REG_GsNOffReg          (0x23)
+#define MFRC_REG_ModWidthReg        (0x24)
+#define MFRC_REG_TxBitPhaseReg      (0x25)
+#define MFRC_REG_RFCfgReg           (0x26)
+#define MFRC_REG_GsNOnReg           (0x27)
+#define MFRC_REG_CWGsPReg           (0x28)
+#define MFRC_REG_ModGsPReg          (0x29)
+#define MFRC_REG_TModeReg           (0x2A)
+#define MFRC_REG_TPrescalerReg      (0x2B)
+#define MFRC_REG_TReloadReg_Hi      (0x2C)
+#define MFRC_REG_TReloadReg_Lo      (0x2D)
+#define MFRC_REG_TCounterVal_Hi     (0x2E)
+#define MFRC_REG_TCounterVal_Lo     (0x2F)
 
-#define MFRC_TestSel1Reg        (0x31)
-#define MFRC_TestSel2Reg        (0x32)
-#define MFRC_TestPinEnReg       (0x33)
-#define MFRC_TestPinValueReg    (0x34)
-#define MFRC_TestBusReg         (0x35)
-#define MFRC_AutoTestReg        (0x36)
-#define MFRC_VersionReg         (0x37)
-#define MFRC_AnalogTestReg      (0x38)
-#define MFRC_TestDAC1Reg        (0x39)
-#define MFRC_TestDAC2Reg        (0x3A)
-#define MFRC_TestADCReg         (0x3B)
+#define MFRC_REG_TestSel1Reg        (0x31)
+#define MFRC_REG_TestSel2Reg        (0x32)
+#define MFRC_REG_TestPinEnReg       (0x33)
+#define MFRC_REG_TestPinValueReg    (0x34)
+#define MFRC_REG_TestBusReg         (0x35)
+#define MFRC_REG_AutoTestReg        (0x36)
+#define MFRC_REG_VersionReg         (0x37)
+#define MFRC_REG_AnalogTestReg      (0x38)
+#define MFRC_REG_TestDAC1Reg        (0x39)
+#define MFRC_REG_TestDAC2Reg        (0x3A)
+#define MFRC_REG_TestADCReg         (0x3B)
 
 
 //------------------------------------------------------------------------------
@@ -121,9 +139,10 @@ will be limited due missing hardware.
 // Define sequential mode and 16 bit registers. (NB Big Endian) 
 // -----------------------------------------------------------------------------
 
-#define MFRC_SequentialAddr     (0x40)
-#define MFRC_CRCResultReg       (MFRC_SequentialAddr + MFRC_CRCResultReg_Hi)
-#define MFRC_TCounterVal        (MFRC_SequentialAddr + MFRC_TCounterVal_Hi)
+#define MFRC_REG_SequentialAddr     (0x40)
+#define MFRC_REG_CRCResultReg       (MFRC_SequentialAddr + MFRC_CRCResultReg_Hi)
+#define MFRC_REG_TCounterVal        (MFRC_SequentialAddr + MFRC_TCounterVal_Hi)
+#define MFRC_REG_TReloadReg			(MFRC_SequentialAddr + MFRC_REG_TReloadReg_Hi)
 
 
 //------------------------------------------------------------------------------
