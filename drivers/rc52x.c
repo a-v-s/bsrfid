@@ -26,9 +26,7 @@ int rc52x_get_chip_version(rc52x_t *rc52x, uint8_t* chip_id) {
 int rc52x_init(rc52x_t *rc52x) {
 	// For initial testing, a sequence of commands found
 	// in a working implementation
-	//rc52x_set_reg8(rc52x, MFRC_REG_CommandReg, MFRC_SoftReset);
-	HAL_Delay(100);
-
+	rc52x_set_reg8(rc52x, MFRC_REG_CommandReg, MFRC_SoftReset);
 	rc52x_set_reg8(rc52x, MFRC_REG_TModeReg, 0x8D);
 	rc52x_set_reg8(rc52x, MFRC_REG_TPrescalerReg, 0x3E);
 	rc52x_set_reg8(rc52x, MFRC_REG_TReloadReg_Lo, 30);
@@ -74,8 +72,8 @@ uint8_t MFRC522_ToCard(rc52x_t *rc52x, uint8_t command, uint8_t * sendData, uint
 	}
 
 	rc52x_set_reg8(rc52x,MFRC_REG_ComlEnReg,  irqEn | 0x80);
-	//rc52x_and_reg8(rc52x,MFRC_REG_ComIrqReg, ~0x80);
-	rc52x_set_reg8(rc52x,MFRC_REG_ComIrqReg,0x00);
+	rc52x_and_reg8(rc52x,MFRC_REG_ComIrqReg, ~0x80);
+	//rc52x_set_reg8(rc52x,MFRC_REG_ComIrqReg,0x00);
 	rc52x_or_reg8(rc52x,MFRC_REG_FIFOLevelReg,  0x80);
 	rc52x_set_reg8(rc52x,MFRC_REG_CommandReg, MFRC_Idle);
 

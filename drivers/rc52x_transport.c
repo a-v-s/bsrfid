@@ -148,7 +148,7 @@ int rc52x_or_reg8(rc52x_t *rc52x, uint8_t reg, uint8_t value) {
 	if (result)
 		return result;
 	tmpval |= value;
-	return rc52x_set_reg8(rc52x, reg, &tmpval);
+	return rc52x_set_reg8(rc52x, reg, tmpval);
 }
 
 int rc52x_and_reg8(rc52x_t *rc52x, uint8_t reg, uint8_t value) {
@@ -158,7 +158,7 @@ int rc52x_and_reg8(rc52x_t *rc52x, uint8_t reg, uint8_t value) {
 	if (result)
 		return result;
 	tmpval &= value;
-	return rc52x_set_reg8(rc52x, reg, &tmpval);
+	return rc52x_set_reg8(rc52x, reg, tmpval);
 }
 
 int rc52x_transport_init(rc52x_t *rc52x, mfrc_transport_t transport,
