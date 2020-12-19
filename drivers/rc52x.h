@@ -152,18 +152,48 @@ typedef struct {
 // may be reserved on some of these chips.
 // -----------------------------------------------------------------------------
 
-#define MFRC_Idle               (0b0000)
-#define MFRC_Configure          (0b0001)
-#define MFRC_GenerateRandomID   (0b0010)
-#define MFRC_CalcCRC            (0b0011)
-#define MFRC_Transmit           (0b0100)
-#define MFRC_NoCmdChange        (0b0111)    
-#define MFRC_Receive            (0b1000)
-#define MFRC_Transceive         (0b1100)
-#define MFRC_AutoColl           (0b1101)
-#define MFRC_MFAuthent          (0b1110)
-#define MFRC_SoftReset          (0b1111)
+#define MFRC_CMD_Idle               (0b0000)
+#define MFRC_CMD_Configure          (0b0001)
+#define MFRC_CMD_GenerateRandomID   (0b0010)
+#define MFRC_CMD_CalcCRC            (0b0011)
+#define MFRC_CMD_Transmit           (0b0100)
+#define MFRC_CMD_NoCmdChange        (0b0111)
+#define MFRC_CMD_Receive            (0b1000)
+#define MFRC_CMD_Transceive         (0b1100)
+#define MFRC_CMD_AutoColl           (0b1101)
+#define MFRC_CMD_MFAuthent          (0b1110)
+#define MFRC_CMD_SoftReset          (0b1111)
 
+
+typedef enum StatusCode {
+	STATUS_OK				= 0,	// Success
+	STATUS_ERROR			= -1,	// Error in communication
+	STATUS_COLLISION		= -2,	// Collission detected
+	STATUS_TIMEOUT			= -3,	// Timeout in communication.
+	STATUS_NO_ROOM			= -4,	// A buffer is not big enough.
+	STATUS_INTERNAL_ERROR	= -5,	// Internal error in the code. Should not happen ;-)
+	STATUS_INVALID			= -6,	// Invalid argument.
+	STATUS_CRC_WRONG		= -7,	// The CRC_A does not match
+	STATUS_MIFARE_NACK		= -8,		// A MIFARE PICC responded with NAK.
+} rc52x_result_t;
+
+// A struct used for passing the UID of a PICC.
+	typedef struct {
+		uint8_t		size;			// Number of bytes in the UID. 4, 7 or 10.
+		uint8_t		uidByte[10];
+		uint8_t		sak;			// The SAK (Select acknowledge) byte returned from the PICC after successful selection.
+	} Uid;
+
+uint8_t rc52x_communicate_with_picc(rc52x_t *rc52x,
+		uint8_t command,///< The command to execute. One of the PCD_Command enums.
+		uint8_t waitIRq,///< The bits in the ComIrqReg register that signals successful completion of the command.
+		uint8_t *sendData,	///< Pointer to the data to transfer to the FIFO.
+		uint8_t sendLen,		///< Number of bytes to transfer to the FIFO.
+		uint8_t *backData,///< NULL or pointer to buffer if data should be read back after executing the command.
+		uint8_t *backLen,///< In: Max number of bytes to write to *backData. Out: The number of bytes returned.
+		uint8_t *validBits,	///< In/Out: The number of valid bits in the last byte. 0 for 8 valid bits.
+		uint8_t rxAlign ///< In: Defines the bit position in backData[0] for the first bit received. Default 0.
+		) ;
 
 #endif // _MFCR522_H_
 
