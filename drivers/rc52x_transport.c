@@ -48,19 +48,23 @@ int mfrc522_recv(rc52x_t *rc52x, uint8_t reg, uint8_t *data, size_t amount) {
 	int result = 0;
 	//if (!mfrc_transmit) return -1;
 	//if (!mfrc_receive) return -1;
-	if (!rc52x->transceive)
-		return -1;
+
 
 	if (reg < 0x40) {
 		switch (rc52x->transport) {
 		case mfrc_transport_spi:
+			if (!rc52x->transceive)
+					return -1;
 			addr = (reg << MFRC522_SPI_REG_SHIFT) | MFRC522_DIR_RECV;
 			memset(data, addr, amount);
 			break;
 		case mfrc_transport_i2c:
 			addr = reg;
+			data[0] =addr;
 			break;
 		case mfrc_transport_uart:
+			if (!rc52x->transceive)
+								return -1;
 			addr = reg | MFRC522_DIR_RECV;
 			memset(data, addr, amount);
 			break;
@@ -97,10 +101,16 @@ int mfrc522_recv(rc52x_t *rc52x, uint8_t reg, uint8_t *data, size_t amount) {
 		}
 	}
 
-	result = rc52x->transmit(&addr, 1, true);
-	if (result)
-		return result;
-	return rc52x->transceive(data, amount);
+
+		result = rc52x->transmit(&addr, 1, true);
+		if (result)
+			return result;
+		if (rc52x->transport == mfrc_transport_i2c){
+			return rc52x->receive(data, amount, false);
+		} else {
+			return rc52x->transceive(data, amount);
+		}
+
 }
 
 int mfrc522_send(rc52x_t *rc52x, uint8_t reg, uint8_t *data, size_t amount) {
