@@ -52,9 +52,6 @@ const uint8_t FM17522_firmware_reference[] = { 0x00, 0xD6, 0x78, 0x8C, 0xE2,
 		0x5B, 0x00, 0x2A, 0xD0, 0x75, 0xDE, 0x9E, 0x51, 0x64, 0xAB, 0x3E, 0xE9,
 		0x15, 0xB5, 0xAB, 0x56, 0x9A, 0x98, 0x82, 0x26, 0xEA, 0x2A, 0x62 };
 
-// Size of the MFRC522 FIFO
-static uint8_t FIFO_SIZE = 64;		// The FIFO is 64 uint8_ts.
-// Default value for unused pin
 
 // MFRC522 RxGain[2:0] masks, defines the receiver's signal voltage gain factor (on the PCD).
 // Described in 9.3.3.6 / table 98 of the datasheet at http://www.nxp.com/documents/data_sheet/MFRC522.pdf
@@ -72,6 +69,7 @@ enum PCD_RxGain {
 	RxGain_max = 0x07 << 4// 111b - 48 dB, maximum, convenience for RxGain_48dB
 };
 
+/*
 // Commands sent to the PICC.
 enum PICC_Command {
 	// The commands used by the PCD to manage communication with several PICCs (ISO 14443-3, Type A, section 6.4)
@@ -98,6 +96,8 @@ enum PICC_Command {
 	// The PICC_CMD_MF_READ and PICC_CMD_MF_WRITE can also be used for MIFARE Ultralight.
 	PICC_CMD_UL_WRITE = 0xA2		// Writes one 4 uint8_t page to the PICC.
 };
+*/
+
 
 // MIFARE constants that does not fit anywhere else
 enum MIFARE_Misc {
@@ -157,52 +157,13 @@ rc52x_result_t PCD_TransceiveData(rc52x_t *rc52x, uint8_t *sendData,
 rc52x_result_t PCD_CommunicateWithPICC(rc52x_t *rc52x, uint8_t command,
 		uint8_t waitIRq, uint8_t *sendData, uint8_t sendLen, uint8_t *backData,
 		uint8_t *backLen, uint8_t *validBits, uint8_t rxAlign, bool checkCRC);
-rc52x_result_t PICC_RequestA(rc52x_t *rc52x, uint8_t *bufferATQA,
-		uint8_t *bufferSize);
-rc52x_result_t PICC_WakeupA(rc52x_t *rc52x, uint8_t *bufferATQA,
-		uint8_t *bufferSize);
+
+rc52x_result_t PICC_RequestA(rc52x_t *rc52x, picc_t *picc);
+rc52x_result_t PICC_WakeupA(rc52x_t *rc52x, picc_t *picc);
 rc52x_result_t PICC_REQA_or_WUPA(rc52x_t *rc52x, uint8_t command,
 		uint8_t *bufferATQA, uint8_t *bufferSize);
-rc52x_result_t PICC_Select(rc52x_t *rc52x, Uid *uid, uint8_t validBits);
+rc52x_result_t PICC_Select(rc52x_t *rc52x, picc_t *uid, uint8_t validBits);
 rc52x_result_t PICC_HaltA(rc52x_t *rc52x);
 
-/////////////////////////////////////////////////////////////////////////////////////
-// Functions for communicating with MIFARE PICCs
-/////////////////////////////////////////////////////////////////////////////////////
-rc52x_result_t PCD_Authenticate(rc52x_t *rc52x, uint8_t command,
-		uint8_t blockAddr, MIFARE_Key *key, Uid *uid);
-void PCD_StopCrypto1(rc52x_t *rc52x);
-rc52x_result_t MIFARE_Read(rc52x_t *rc52x, uint8_t blockAddr, uint8_t *buffer,
-		uint8_t *bufferSize);
-rc52x_result_t MIFARE_Write(rc52x_t *rc52x, uint8_t blockAddr, uint8_t *buffer,
-		uint8_t bufferSize);
-rc52x_result_t MIFARE_Ultralight_Write(rc52x_t *rc52x, uint8_t page,
-		uint8_t *buffer, uint8_t bufferSize);
-rc52x_result_t MIFARE_Decrement(rc52x_t *rc52x, uint8_t blockAddr,
-		int32_t delta);
-rc52x_result_t MIFARE_Increment(rc52x_t *rc52x, uint8_t blockAddr,
-		int32_t delta);
-rc52x_result_t MIFARE_Restore(rc52x_t *rc52x, uint8_t blockAddr);
-rc52x_result_t MIFARE_Transfer(rc52x_t *rc52x, uint8_t blockAddr);
-rc52x_result_t MIFARE_GetValue(rc52x_t *rc52x, uint8_t blockAddr,
-		int32_t *value);
-rc52x_result_t MIFARE_SetValue(rc52x_t *rc52x, uint8_t blockAddr,
-		int32_t value);
-rc52x_result_t PCD_NTAG216_AUTH(rc52x_t *rc52x, uint8_t *passWord,
-		uint8_t pACK[]);
-
-/////////////////////////////////////////////////////////////////////////////////////
-// Support functions
-/////////////////////////////////////////////////////////////////////////////////////
-rc52x_result_t PCD_MIFARE_Transceive(rc52x_t *rc52x, uint8_t *sendData,
-		uint8_t sendLen, bool acceptTimeout);
-
-// Advanced functions for MIFARE
-void MIFARE_SetAccessBits(rc52x_t *rc52x, uint8_t *accessBitBuffer, uint8_t g0,
-		uint8_t g1, uint8_t g2, uint8_t g3);
-bool MIFARE_OpenUidBackdoor(rc52x_t *rc52x, bool logErrors);
-bool MIFARE_SetUid(rc52x_t *rc52x, uint8_t *newUid, uint8_t uidSize,
-		bool logErrors);
-bool MIFARE_UnbrickUidSector(rc52x_t *rc52x, bool logErrors);
 
 #endif

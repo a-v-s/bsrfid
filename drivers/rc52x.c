@@ -22,7 +22,7 @@ int rc52x_get_chip_version(rc52x_t *rc52x, uint8_t *chip_id) {
 int rc52x_init(rc52x_t *rc52x) {
 	// For initial testing, a sequence of commands found
 	// in a working implementation
-	rc52x_set_reg8(rc52x, MFRC_REG_CommandReg, MFRC_CMD_SoftReset);
+	rc52x_set_reg8(rc52x, MFRC_REG_CommandReg, RC52X_CMD_SoftReset);
 
 	/*
 	rc52x_set_reg8(rc52x, MFRC_REG_TModeReg, 0x8D);
@@ -61,12 +61,12 @@ uint8_t MFRC522_ToCard(rc52x_t *rc52x, uint8_t command, uint8_t *sendData,
 	uint16_t i;
 
 	switch (command) {
-	case MFRC_CMD_MFAuthent: {
+	case RC52X_CMD_MFAuthent: {
 		irqEn = 0x12;
 		waitIRq = 0x10;
 		break;
 	}
-	case MFRC_CMD_Transceive: {
+	case RC52X_CMD_Transceive: {
 		irqEn = 0x77;
 		waitIRq = 0x30;
 		break;
@@ -79,14 +79,14 @@ uint8_t MFRC522_ToCard(rc52x_t *rc52x, uint8_t command, uint8_t *sendData,
 	rc52x_and_reg8(rc52x, MFRC_REG_ComIrqReg, ~0x80);
 	//rc52x_set_reg8(rc52x,MFRC_REG_ComIrqReg,0x00);
 	rc52x_or_reg8(rc52x, MFRC_REG_FIFOLevelReg, 0x80);
-	rc52x_set_reg8(rc52x, MFRC_REG_CommandReg, MFRC_CMD_Idle);
+	rc52x_set_reg8(rc52x, MFRC_REG_CommandReg, RC52X_CMD_Idle);
 
 	// Writing data to the FIFO
 	mfrc522_send(rc52x, MFRC_REG_FIFODataReg, sendData, sendLen);
 
 	// Execute the command
 	rc52x_set_reg8(rc52x, MFRC_REG_CommandReg, command);
-	if (command == MFRC_CMD_Transceive)
+	if (command == RC52X_CMD_Transceive)
 		rc52x_or_reg8(rc52x, MFRC_REG_BitFramingReg, 0x80);	// StartSend=1,transmission of data starts
 
 	// Waiting to receive data to complete
@@ -108,7 +108,7 @@ uint8_t MFRC522_ToCard(rc52x_t *rc52x, uint8_t command, uint8_t *sendData,
 			status = MI_OK;
 			if (n & irqEn & 0x01)
 				status = MI_NOTAGERR;
-			if (command == MFRC_CMD_Transceive) {
+			if (command == RC52X_CMD_Transceive) {
 
 				rc52x_get_reg8(rc52x, MFRC_REG_FIFOLevelReg, &n);
 				//lastBits = MFRC522_ReadRegister(MFRC522_REG_CONTROL) & 0x07;
@@ -140,7 +140,7 @@ int rc52x_reqa(rc52x_t *rc52x) {
 	uint8_t buff[2] = {PICC_CMD_REQA};
 	size_t size = 2;
 	int status = 0;
-	status = MFRC522_ToCard(rc52x, MFRC_CMD_Transceive, buff, 1, buff,
+	status = MFRC522_ToCard(rc52x, RC52X_CMD_Transceive, buff, 1, buff,
 			&size);
 	if ((status != MI_OK) || (size != 0x10))
 		status = MI_ERR;
@@ -160,7 +160,7 @@ int rc52x_anticol(rc52x_t *rc52x, uint8_t *serNum) {
 
 	rc52x_set_reg8(rc52x, MFRC_REG_BitFramingReg, 0x07);// TxLastBists = BitFramingReg[2..0]
 	serNum[0] = PICC_CMD_REQA;
-	status = MFRC522_ToCard(rc52x, MFRC_CMD_Transceive, serNum, 1, serNum,
+	status = MFRC522_ToCard(rc52x, RC52X_CMD_Transceive, serNum, 1, serNum,
 			&unLen);
 	if ((status != MI_OK) || (unLen != 0x10))
 		status = MI_ERR;
@@ -182,7 +182,7 @@ int rc52x_anticol(rc52x_t *rc52x, uint8_t *serNum) {
 	 uint8_t rxAlign ///< In: Defines the bit position in backData[0] for the first bit received. Default 0.
 	 */
 	uint8_t validBits = 0;
-	status = rc52x_communicate_with_picc(rc52x, MFRC_CMD_Transceive, 0x30,
+	status = rc52x_communicate_with_picc(rc52x, RC52X_CMD_Transceive, 0x30,
 			serNum, 2, serNum, &unLen, &validBits, 0);
 
 	if (status == MI_OK) {
@@ -225,13 +225,13 @@ uint8_t rc52x_communicate_with_picc(rc52x_t *rc52x, uint8_t command,///< The com
 	uint8_t txLastBits = validBits ? *validBits : 0;
 	uint8_t bitFraming = (rxAlign << 4) + txLastBits; // RxAlign = BitFramingReg[6..4]. TxLastBits = BitFramingReg[2..0]
 
-	rc52x_set_reg8(rc52x, MFRC_REG_CommandReg, MFRC_CMD_Idle); // Stop any active command.
+	rc52x_set_reg8(rc52x, MFRC_REG_CommandReg, RC52X_CMD_Idle); // Stop any active command.
 	rc52x_set_reg8(rc52x, MFRC_REG_ComIrqReg, 0x7F); // Clear all seven interrupt request bits
 	rc52x_or_reg8(rc52x, MFRC_REG_FIFOLevelReg, 0x80); // FlushBuffer = 1, FIFO initialization
 	mfrc522_send(rc52x, MFRC_REG_FIFODataReg, sendData, sendLen);
 	rc52x_set_reg8(rc52x, MFRC_REG_BitFramingReg, bitFraming); // Bit adjustments
 	rc52x_set_reg8(rc52x, MFRC_REG_CommandReg, command); // Execute the command
-	if (command == MFRC_CMD_Transceive) {
+	if (command == RC52X_CMD_Transceive) {
 		rc52x_or_reg8(rc52x, MFRC_REG_BitFramingReg, 0x80);	// StartSend=1, transmission of data starts
 	}
 
@@ -317,14 +317,14 @@ uint8_t _PCD_CalculateCRC(rc52x_t*rc52x,	uint8_t *data,		///< In: Pointer to the
 		uint8_t length,	///< In: The number of bytes to transfer.
 		uint8_t *result	///< Out: Pointer to result buffer. Result is written to result[0..1], low byte first.
 					 ) {
-	rc52x_set_reg8(rc52x, MFRC_REG_CommandReg, MFRC_CMD_Idle);			// Stop any active command.
+	rc52x_set_reg8(rc52x, MFRC_REG_CommandReg, RC52X_CMD_Idle);			// Stop any active command.
 	rc52x_set_reg8(rc52x, MFRC_REG_DivIrqReg, 0x04);					// Clear the CRCIRq interrupt request bit
 	rc52x_or_reg8(rc52x, MFRC_REG_FIFOLevelReg, 0x80);		// FlushBuffer = 1, FIFO initialization
 
 
 	mfrc522_send(rc52x, MFRC_REG_FIFODataReg, data, length);// Write data to the FIFO
 
-	rc52x_set_reg8(rc52x, MFRC_REG_CommandReg, MFRC_CMD_CalcCRC);		// Start the calculation
+	rc52x_set_reg8(rc52x, MFRC_REG_CommandReg, RC52X_CMD_CalcCRC);		// Start the calculation
 
 	// Wait for the CRC calculation to complete. Each iteration of the while-loop takes 17.73�s.
 	uint16_t i = 5000;
@@ -339,7 +339,7 @@ uint8_t _PCD_CalculateCRC(rc52x_t*rc52x,	uint8_t *data,		///< In: Pointer to the
 			return STATUS_TIMEOUT;
 		}
 	}
-	rc52x_set_reg8(rc52x, MFRC_REG_CommandReg, MFRC_CMD_Idle);			// Stop calculating CRC for new content in the FIFO.
+	rc52x_set_reg8(rc52x, MFRC_REG_CommandReg, RC52X_CMD_Idle);			// Stop calculating CRC for new content in the FIFO.
 
 	// Transfer the result from the registers to the result buffer
 	/*
@@ -356,7 +356,7 @@ uint8_t _PCD_CalculateCRC(rc52x_t*rc52x,	uint8_t *data,		///< In: Pointer to the
 
 
 // Ported "Unduino'd" from https://github.com/pkourany/MFRC522_RFID_Library
-uint8_t _PICC_Select(rc52x_t *rc52x, Uid *uid,///< Pointer to Uid struct. Normally output, but can also be used to supply a known UID.
+uint8_t _PICC_Select(rc52x_t *rc52x, picc_t *uid,///< Pointer to Uid struct. Normally output, but can also be used to supply a known UID.
 		uint8_t validBits///< The number of known UID bits supplied in *uid. Normally 0. If set you must also supply uid->size.
 		) {
 	bool uidComplete;
@@ -512,7 +512,7 @@ uint8_t _PICC_Select(rc52x_t *rc52x, Uid *uid,///< Pointer to Uid struct. Normal
 
 
 			// Transmit the buffer and receive the response.
-			result = rc52x_communicate_with_picc(rc52x, MFRC_CMD_Transceive, 0x30, buffer, bufferUsed, responseBuffer,
+			result = rc52x_communicate_with_picc(rc52x, RC52X_CMD_Transceive, 0x30, buffer, bufferUsed, responseBuffer,
 					&responseLength, &txLastBits, rxAlign);
 
 			if (result == STATUS_COLLISION) { // More than one PICC in the field => collision.
@@ -583,7 +583,7 @@ uint8_t _PICC_Select(rc52x_t *rc52x, Uid *uid,///< Pointer to Uid struct. Normal
 			cascadeLevel++;
 		} else {
 			uidComplete = true;
-			uid->sak = responseBuffer[0];
+			uid->sak.as_uint8 = responseBuffer[0];
 		}
 	} // End of while ( ! uidComplete)
 

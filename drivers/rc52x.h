@@ -48,7 +48,8 @@ will be limited due missing hardware.
 #ifndef _MFCR522_H_
 #define _MFCR522_H_
 
-
+#include "../cards/picc.h"
+#include "iso14443a.h"
 
 #include "rc52x_transport.h"
 
@@ -152,37 +153,33 @@ typedef struct {
 // may be reserved on some of these chips.
 // -----------------------------------------------------------------------------
 
-#define MFRC_CMD_Idle               (0b0000)
-#define MFRC_CMD_Configure          (0b0001)
-#define MFRC_CMD_GenerateRandomID   (0b0010)
-#define MFRC_CMD_CalcCRC            (0b0011)
-#define MFRC_CMD_Transmit           (0b0100)
-#define MFRC_CMD_NoCmdChange        (0b0111)
-#define MFRC_CMD_Receive            (0b1000)
-#define MFRC_CMD_Transceive         (0b1100)
-#define MFRC_CMD_AutoColl           (0b1101)
-#define MFRC_CMD_MFAuthent          (0b1110)
-#define MFRC_CMD_SoftReset          (0b1111)
+#define RC52X_CMD_Idle               (0b0000)
+#define RC52X_CMD_Configure          (0b0001)
+#define RC52X_CMD_GenerateRandomID   (0b0010)
+#define RC52X_CMD_CalcCRC            (0b0011)
+#define RC52X_CMD_Transmit           (0b0100)
+#define RC52X_CMD_NoCmdChange        (0b0111)
+#define RC52X_CMD_Receive            (0b1000)
+#define RC52X_CMD_Transceive         (0b1100)
+#define RC52X_CMD_AutoColl           (0b1101)
+#define RC52X_CMD_MFAuthent          (0b1110)
+#define RC52X_CMD_SoftReset          (0b1111)
 
 
-typedef enum StatusCode {
+typedef enum {
 	STATUS_OK				= 0,	// Success
 	STATUS_ERROR			= -1,	// Error in communication
-	STATUS_COLLISION		= -2,	// Collission detected
-	STATUS_TIMEOUT			= -3,	// Timeout in communication.
-	STATUS_NO_ROOM			= -4,	// A buffer is not big enough.
-	STATUS_INTERNAL_ERROR	= -5,	// Internal error in the code. Should not happen ;-)
-	STATUS_INVALID			= -6,	// Invalid argument.
-	STATUS_CRC_WRONG		= -7,	// The CRC_A does not match
-	STATUS_MIFARE_NACK		= -8,		// A MIFARE PICC responded with NAK.
+	STATUS_HARD_ERROR		= -2,	// Hardware error (eg. I2C NACK)
+	STATUS_COLLISION		= -3,	// Collission detected
+	STATUS_TIMEOUT			= -4,	// Timeout in communication.
+	STATUS_NO_ROOM			= -5,	// A buffer is not big enough.
+	STATUS_INTERNAL_ERROR	= -6,	// Internal error in the code. Should not happen ;-)
+	STATUS_INVALID			= -7,	// Invalid argument.
+	STATUS_CRC_WRONG		= -8,	// The CRC_A does not match
+	STATUS_MIFARE_NACK		= -9,		// A MIFARE PICC responded with NAK.
 } rc52x_result_t;
 
-// A struct used for passing the UID of a PICC.
-	typedef struct {
-		uint8_t		size;			// Number of bytes in the UID. 4, 7 or 10.
-		uint8_t		uidByte[10];
-		uint8_t		sak;			// The SAK (Select acknowledge) byte returned from the PICC after successful selection.
-	} Uid;
+
 
 uint8_t rc52x_communicate_with_picc(rc52x_t *rc52x,
 		uint8_t command,///< The command to execute. One of the PCD_Command enums.

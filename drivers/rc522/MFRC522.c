@@ -1,3 +1,11 @@
+/******************************************************************************
+ * Based upon https://github.com/miguelbalboa/rfid
+ *
+ * C port by André van Schoubroeck <andre@blaatschaap.be>
+ *
+ *
+ */
+
 /*
  * MFRC522.cpp - Library to use ARDUINO RFID MODULE KIT 13.56 MHZ WITH TAGS SPI W AND R BY COOQROBOT.
  * NOTE: Please also check the comments in MFRC522.h - they provide useful hints and background information.
@@ -21,7 +29,6 @@ uint8_t PCD_ReadRegister(rc52x_t *rc52x, uint8_t reg) {
 	return regval;
 }
 
-
 int PCD_ClearRegisterBitMask(rc52x_t *rc52x, uint8_t reg, uint8_t value) {
 	return rc52x_and_reg8(rc52x, reg, ~value);
 }
@@ -35,11 +42,11 @@ rc52x_result_t PCD_CalculateCRC(rc52x_t *rc52x, uint8_t *data, ///< In: Pointer 
 		uint8_t length,	///< In: The number of uint8_ts to transfer.
 		uint8_t *result	///< Out: Pointer to result buffer. Result is written to result[0..1], low uint8_t first.
 		) {
-	rc52x_set_reg8(rc52x, MFRC_REG_CommandReg, MFRC_CMD_Idle);// Stop any active command.
+	rc52x_set_reg8(rc52x, MFRC_REG_CommandReg, RC52X_CMD_Idle);// Stop any active command.
 	rc52x_set_reg8(rc52x, MFRC_REG_DivIrqReg, 0x04);// Clear the CRCIRq interrupt request bit
 	rc52x_set_reg8(rc52x, MFRC_REG_FIFOLevelReg, 0x80);	// FlushBuffer = 1, FIFO initialization
 	mfrc522_send(rc52x, MFRC_REG_FIFODataReg, data, length);// Write data to the FIFO
-	rc52x_set_reg8(rc52x, MFRC_REG_CommandReg, MFRC_CMD_CalcCRC);// Start the calculation
+	rc52x_set_reg8(rc52x, MFRC_REG_CommandReg, RC52X_CMD_CalcCRC);// Start the calculation
 
 	// Wait for the CRC calculation to complete. Each iteration of the while-loop takes 17.73μs.
 	// TODO check/modify for other architectures than Arduino Uno 16bit
@@ -49,7 +56,7 @@ rc52x_result_t PCD_CalculateCRC(rc52x_t *rc52x, uint8_t *data, ///< In: Pointer 
 		// DivIrqReg[7..0] bits are: Set2 reserved reserved MfinActIRq reserved CRCIRq reserved reserved
 		uint8_t n = PCD_ReadRegister(rc52x, MFRC_REG_DivIrqReg);
 		if (n & 0x04) {						// CRCIRq bit set - calculation done
-			rc52x_set_reg8(rc52x, MFRC_REG_CommandReg, MFRC_CMD_Idle);// Stop calculating CRC for new content in the FIFO.
+			rc52x_set_reg8(rc52x, MFRC_REG_CommandReg, RC52X_CMD_Idle);// Stop calculating CRC for new content in the FIFO.
 			// Transfer the result from the registers to the result buffer
 			result[0] = PCD_ReadRegister(rc52x, MFRC_REG_CRCResultReg_Lo);
 			result[1] = PCD_ReadRegister(rc52x, MFRC_REG_CRCResultReg_Hi);
@@ -94,7 +101,7 @@ void PCD_Init(rc52x_t *rc52x) {
  * Performs a soft reset on the MFRC522 chip and waits for it to be ready again.
  */
 void PCD_Reset(rc52x_t *rc52x) {
-	rc52x_set_reg8(rc52x, MFRC_REG_CommandReg, MFRC_CMD_SoftReset); // Issue the SoftReset command.
+	rc52x_set_reg8(rc52x, MFRC_REG_CommandReg, RC52X_CMD_SoftReset); // Issue the SoftReset command.
 	// The datasheet does not mention how long the SoftRest command takes to complete.
 	// But the MFRC522 might have been in soft power-down mode (triggered by bit 4 of CommandReg) 
 	// Section 8.8.2 in the datasheet says the oscillator start-up time is the start up time of the crystal + 37,74μs. Let us be generous: 50ms.
@@ -121,7 +128,7 @@ void PCD_AntennaOn(rc52x_t *rc52x) {
  * Turns the antenna off by disabling pins TX1 and TX2.
  */
 void PCD_AntennaOff(rc52x_t *rc52x) {
-	PCD_ClearRegisterBitMask(rc52x,MFRC_REG_TxControlReg, 0x03);
+	PCD_ClearRegisterBitMask(rc52x, MFRC_REG_TxControlReg, 0x03);
 } // End PCD_AntennaOff()
 
 /**
@@ -141,9 +148,9 @@ uint8_t PCD_GetAntennaGain(rc52x_t *rc52x) {
  * NOTE: Given mask is scrubbed with (0x07<<4)=01110000b as RCFfgReg may use reserved bits.
  */
 void PCD_SetAntennaGain(rc52x_t *rc52x, uint8_t mask) {
-	if (PCD_GetAntennaGain(rc52x) != mask) {// only bother if there is a change
-		PCD_ClearRegisterBitMask(rc52x, MFRC_REG_RFCfgReg, (0x07 << 4));// clear needed to allow 000 pattern
-		PCD_SetRegisterBitMask(rc52x, MFRC_REG_RFCfgReg, mask & (0x07 << 4));// only set RxGain[2:0] bits
+	if (PCD_GetAntennaGain(rc52x) != mask) { // only bother if there is a change
+		PCD_ClearRegisterBitMask(rc52x, MFRC_REG_RFCfgReg, (0x07 << 4)); // clear needed to allow 000 pattern
+		PCD_SetRegisterBitMask(rc52x, MFRC_REG_RFCfgReg, mask & (0x07 << 4)); // only set RxGain[2:0] bits
 	}
 } // End PCD_SetAntennaGain()
 
@@ -161,8 +168,8 @@ bool PCD_PerformSelfTest(rc52x_t *rc52x) {
 	// 2. Clear the internal buffer by writing 25 uint8_ts of 00h
 	uint8_t ZEROES[25] = { 0x00 };
 	rc52x_set_reg8(rc52x, MFRC_REG_FIFOLevelReg, 0x80);	// flush the FIFO buffer
-	mfrc522_send(rc52x, MFRC_REG_FIFODataReg,  ZEROES, 25);// write 25 uint8_ts of 00h to FIFO
-	rc52x_set_reg8(rc52x, MFRC_REG_CommandReg, MFRC_CMD_Configure);	// transfer to internal buffer
+	mfrc522_send(rc52x, MFRC_REG_FIFODataReg, ZEROES, 25);// write 25 uint8_ts of 00h to FIFO
+	rc52x_set_reg8(rc52x, MFRC_REG_CommandReg, RC52X_CMD_Configure);	// transfer to internal buffer
 
 	// 3. Enable self-test
 	rc52x_set_reg8(rc52x, MFRC_REG_AutoTestReg, 0x09);
@@ -171,7 +178,7 @@ bool PCD_PerformSelfTest(rc52x_t *rc52x) {
 	rc52x_set_reg8(rc52x, MFRC_REG_FIFODataReg, 0x00);
 
 	// 5. Start self-test by issuing the CalcCRC command
-	rc52x_set_reg8(rc52x, MFRC_REG_CommandReg, MFRC_CMD_CalcCRC);
+	rc52x_set_reg8(rc52x, MFRC_REG_CommandReg, RC52X_CMD_CalcCRC);
 
 	// 6. Wait for self-test to complete
 	uint8_t n;
@@ -188,7 +195,7 @@ bool PCD_PerformSelfTest(rc52x_t *rc52x) {
 			break;
 		}
 	}
-	rc52x_set_reg8(rc52x, MFRC_REG_CommandReg, MFRC_CMD_Idle);// Stop calculating CRC for new content in the FIFO.
+	rc52x_set_reg8(rc52x, MFRC_REG_CommandReg, RC52X_CMD_Idle);// Stop calculating CRC for new content in the FIFO.
 
 	// 7. Read out resulting 64 uint8_ts from the FIFO buffer.
 	uint8_t result[64];
@@ -283,7 +290,7 @@ rc52x_result_t PCD_TransceiveData(rc52x_t *rc52x, uint8_t *sendData, ///< Pointe
 		bool checkCRC///< In: True => The last two uint8_ts of the response is assumed to be a CRC_A that must be validated.
 		) {
 	uint8_t waitIRq = 0x30;		// RxIRq and IdleIRq
-	return PCD_CommunicateWithPICC(rc52x, MFRC_CMD_Transceive, waitIRq,
+	return PCD_CommunicateWithPICC(rc52x, RC52X_CMD_Transceive, waitIRq,
 			sendData, sendLen, backData, backLen, validBits, rxAlign, checkCRC);
 } // End PCD_TransceiveData()
 
@@ -307,14 +314,15 @@ rc52x_result_t PCD_CommunicateWithPICC(rc52x_t *rc52x, uint8_t command,	///< The
 	uint8_t txLastBits = validBits ? *validBits : 0;
 	uint8_t bitFraming = (rxAlign << 4) + txLastBits;// RxAlign = BitFramingReg[6..4]. TxLastBits = BitFramingReg[2..0]
 
-	rc52x_set_reg8(rc52x, MFRC_REG_CommandReg, MFRC_CMD_Idle);// Stop any active command.
+	rc52x_set_reg8(rc52x, MFRC_REG_CommandReg, RC52X_CMD_Idle);// Stop any active command.
 	rc52x_set_reg8(rc52x, MFRC_REG_ComIrqReg, 0x7F);// Clear all seven interrupt request bits
 	rc52x_set_reg8(rc52x, MFRC_REG_FIFOLevelReg, 0x80);	// FlushBuffer = 1, FIFO initialization
 	mfrc522_send(rc52x, MFRC_REG_FIFODataReg, sendData, sendLen);// Write sendData to the FIFO
 	rc52x_set_reg8(rc52x, MFRC_REG_BitFramingReg, bitFraming);// Bit adjustments
 	rc52x_set_reg8(rc52x, MFRC_REG_CommandReg, command);// Execute the command
-	if (command == MFRC_CMD_Transceive) {
-		rc52x_set_reg8(rc52x, MFRC_REG_BitFramingReg, 0x80);// StartSend=1, transmission of data starts
+	if (command == RC52X_CMD_Transceive) {
+		//rc52x_set_reg8(rc52x, MFRC_REG_BitFramingReg, 0x80);// StartSend=1, transmission of data starts
+		rc52x_or_reg8(rc52x, MFRC_REG_BitFramingReg, 0x80);	// StartSend=1, transmission of data starts
 	}
 
 	// Wait for the command to complete.
@@ -395,10 +403,9 @@ rc52x_result_t PCD_CommunicateWithPICC(rc52x_t *rc52x, uint8_t command,	///< The
  * 
  * @return STATUS_OK on success, STATUS_??? otherwise.
  */
-rc52x_result_t PICC_RequestA(rc52x_t *rc52x, uint8_t *bufferATQA, ///< The buffer to store the ATQA (Answer to request) in
-		uint8_t *bufferSize	///< Buffer size, at least two uint8_ts. Also number of uint8_ts returned if STATUS_OK.
-		) {
-	return PICC_REQA_or_WUPA(rc52x, PICC_CMD_REQA, bufferATQA, bufferSize);
+rc52x_result_t PICC_RequestA(rc52x_t *rc52x, picc_t *picc) {
+	picc->protocol = picc_protocol_iso14443a;
+	return PICC_REQA_or_WUPA(rc52x, PICC_CMD_REQA, &picc->atqa, sizeof(iso14443a_atqa_t));
 } // End PICC_RequestA()
 
 /**
@@ -407,11 +414,10 @@ rc52x_result_t PICC_RequestA(rc52x_t *rc52x, uint8_t *bufferATQA, ///< The buffe
  * 
  * @return STATUS_OK on success, STATUS_??? otherwise.
  */
-rc52x_result_t PICC_WakeupA(rc52x_t *rc52x, uint8_t *bufferATQA, ///< The buffer to store the ATQA (Answer to request) in
-		uint8_t *bufferSize	///< Buffer size, at least two uint8_ts. Also number of uint8_ts returned if STATUS_OK.
-		) {
-	return PICC_REQA_or_WUPA(rc52x, PICC_CMD_WUPA, bufferATQA, bufferSize);
-} // End PICC_WakeupA()
+rc52x_result_t PICC_WakeupA(rc52x_t *rc52x, picc_t *picc) {
+	if (picc->protocol != picc_protocol_iso14443a) return STATUS_INVALID;
+	return PICC_REQA_or_WUPA(rc52x, PICC_CMD_WUPA, &picc->atqa, sizeof(iso14443a_atqa_t));
+} //  // End PICC_WakeupA()
 
 /**
  * Transmits REQA or WUPA commands.
@@ -429,7 +435,7 @@ rc52x_result_t PICC_REQA_or_WUPA(rc52x_t *rc52x, uint8_t command, ///< The comma
 	if (bufferATQA == NULL || *bufferSize < 2) {// The ATQA response is 2 uint8_ts long.
 		return STATUS_NO_ROOM;
 	}
-	PCD_ClearRegisterBitMask(rc52x,MFRC_REG_CollReg, 0x80);// ValuesAfterColl=1 => Bits received after collision are cleared.
+	PCD_ClearRegisterBitMask(rc52x, MFRC_REG_CollReg, 0x80);// ValuesAfterColl=1 => Bits received after collision are cleared.
 	validBits = 7;// For REQA and WUPA we need the short frame format - transmit only 7 bits of the last (and only) uint8_t. TxLastBits = BitFramingReg[2..0]
 	status = PCD_TransceiveData(rc52x, &command, 1, bufferATQA, bufferSize,
 			&validBits, 0, false);
@@ -457,11 +463,13 @@ rc52x_result_t PICC_REQA_or_WUPA(rc52x_t *rc52x, uint8_t command, ///< The comma
  * 		double				 7						2				MIFARE Ultralight
  * 		triple				10						3				Not currently in use?
  * 
+ *
+ * uid:  Pointer to Uid struct. Normally output, but can also be used to supply a known UID.
+ * validBits: The number of known UID bits supplied in *uid. Normally 0. If set you must also supply uid->size.
+ *
  * @return STATUS_OK on success, STATUS_??? otherwise.
  */
-rc52x_result_t PICC_Select(rc52x_t *rc52x, Uid *uid, ///< Pointer to Uid struct. Normally output, but can also be used to supply a known UID.
-		uint8_t validBits ///< The number of known UID bits supplied in *uid. Normally 0. If set you must also supply uid->size.
-		) {
+rc52x_result_t PICC_Select(rc52x_t *rc52x, picc_t *picc, uint8_t validBits) {
 	bool uidComplete;
 	bool selectDone;
 	bool useCascadeTag;
@@ -517,13 +525,13 @@ rc52x_result_t PICC_Select(rc52x_t *rc52x, Uid *uid, ///< Pointer to Uid struct.
 		case 1:
 			buffer[0] = PICC_CMD_SEL_CL1;
 			uidIndex = 0;
-			useCascadeTag = validBits && uid->size > 4;	// When we know that the UID has more than 4 uint8_ts
+			useCascadeTag = validBits && picc->size > 4;	// When we know that the UID has more than 4 uint8_ts
 			break;
 
 		case 2:
 			buffer[0] = PICC_CMD_SEL_CL2;
 			uidIndex = 3;
-			useCascadeTag = validBits && uid->size > 7;	// When we know that the UID has more than 7 uint8_ts
+			useCascadeTag = validBits && picc->size > 7;	// When we know that the UID has more than 7 uint8_ts
 			break;
 
 		case 3:
@@ -555,7 +563,7 @@ rc52x_result_t PICC_Select(rc52x_t *rc52x, Uid *uid, ///< Pointer to Uid struct.
 				uint8_tsToCopy = maxuint8_ts;
 			}
 			for (count = 0; count < uint8_tsToCopy; count++) {
-				buffer[index++] = uid->uidByte[uidIndex + count];
+				buffer[index++] = picc->uidByte[uidIndex + count];
 			}
 		}
 		// Now that the data has been copied we need to include the 8 bits in CT in currentLevelKnownBits
@@ -605,7 +613,7 @@ rc52x_result_t PICC_Select(rc52x_t *rc52x, Uid *uid, ///< Pointer to Uid struct.
 					false);
 			if (result == STATUS_COLLISION) { // More than one PICC in the field => collision.
 				uint8_t valueOfCollReg = PCD_ReadRegister(rc52x,
-						MFRC_REG_CollReg); // CollReg[7..0] bits are: ValuesAfterColl reserved CollPosNotValid CollPos[4:0]
+				MFRC_REG_CollReg); // CollReg[7..0] bits are: ValuesAfterColl reserved CollPosNotValid CollPos[4:0]
 				if (valueOfCollReg & 0x20) { // CollPosNotValid
 					return STATUS_COLLISION; // Without a valid collision position we cannot continue
 				}
@@ -642,7 +650,7 @@ rc52x_result_t PICC_Select(rc52x_t *rc52x, Uid *uid, ///< Pointer to Uid struct.
 		index = (buffer[2] == PICC_CMD_CT) ? 3 : 2; // source index in buffer[]
 		uint8_tsToCopy = (buffer[2] == PICC_CMD_CT) ? 3 : 4;
 		for (count = 0; count < uint8_tsToCopy; count++) {
-			uid->uidByte[uidIndex + count] = buffer[index++];
+			picc->uidByte[uidIndex + count] = buffer[index++];
 		}
 
 		// Check response SAK (Select Acknowledge)
@@ -662,12 +670,12 @@ rc52x_result_t PICC_Select(rc52x_t *rc52x, Uid *uid, ///< Pointer to Uid struct.
 			cascadeLevel++;
 		} else {
 			uidComplete = true;
-			uid->sak = responseBuffer[0];
+			picc->sak.as_uint8 = responseBuffer[0];
 		}
 	} // End of while (!uidComplete)
 
 	// Set correct uid->size
-	uid->size = 3 * cascadeLevel + 1;
+	picc->size = 3 * cascadeLevel + 1;
 
 	return STATUS_OK;
 } // End PICC_Select()
@@ -725,7 +733,7 @@ rc52x_result_t PICC_HaltA(rc52x_t *rc52x) {
 rc52x_result_t PCD_Authenticate(rc52x_t *rc52x, uint8_t command, ///< PICC_CMD_MF_AUTH_KEY_A or PICC_CMD_MF_AUTH_KEY_B
 		uint8_t blockAddr, ///< The block number. See numbering in the comments in the .h file.
 		MIFARE_Key *key,	///< Pointer to the Crypteo1 key to use (6 uint8_ts)
-		Uid *uid///< Pointer to Uid struct. The first 4 uint8_ts of the UID is used.
+		picc_t *picc///< Pointer to Uid struct. The first 4 uint8_ts of the UID is used.
 		) {
 	uint8_t waitIRq = 0x10;		// IdleIRq
 
@@ -739,13 +747,13 @@ rc52x_result_t PCD_Authenticate(rc52x_t *rc52x, uint8_t command, ///< PICC_CMD_M
 	// Use the last uid uint8_ts as specified in http://cache.nxp.com/documents/application_note/AN10927.pdf
 	// section 3.2.5 "MIFARE Classic Authentication".
 	// The only missed case is the MF1Sxxxx shortcut activation,
-	// but it requires cascade tag (CT) uint8_t, that is not part of uid.
+	// but it requires cascade tag (CT) uint8_t, that is not part of picc.
 	for (uint8_t i = 0; i < 4; i++) {		// The last 4 uint8_ts of the UID
-		sendData[8 + i] = uid->uidByte[i + uid->size - 4];
+		sendData[8 + i] = picc->uidByte[i + picc->size - 4];
 	}
 
 	// Start the authentication.
-	return PCD_CommunicateWithPICC(rc52x, MFRC_CMD_MFAuthent, waitIRq,
+	return PCD_CommunicateWithPICC(rc52x, RC52X_CMD_MFAuthent, waitIRq,
 			&sendData[0], sizeof(sendData), NULL, 0, NULL, 0, false);
 } // End PCD_Authenticate()
 
@@ -793,7 +801,7 @@ rc52x_result_t PCD_NTAG216_AUTH(rc52x_t *rc52x, uint8_t *passuint16_t,
 	uint8_t validBits = 0;
 	uint8_t rxlength = 5;
 
-	result = PCD_CommunicateWithPICC(rc52x, MFRC_CMD_Transceive, waitIRq,
+	result = PCD_CommunicateWithPICC(rc52x, RC52X_CMD_Transceive, waitIRq,
 			cmdBuffer, 7, cmdBuffer, &rxlength, &validBits, 0, false);
 
 	pACK[0] = cmdBuffer[0];
@@ -840,7 +848,7 @@ rc52x_result_t PCD_MIFARE_Transceive(rc52x_t *rc52x, uint8_t *sendData,	///< Poi
 	uint8_t waitIRq = 0x30;		// RxIRq and IdleIRq
 	uint8_t cmdBufferSize = sizeof(cmdBuffer);
 	uint8_t validBits = 0;
-	result = PCD_CommunicateWithPICC(rc52x, MFRC_CMD_Transceive, waitIRq,
+	result = PCD_CommunicateWithPICC(rc52x, RC52X_CMD_Transceive, waitIRq,
 			cmdBuffer, sendLen, cmdBuffer, &cmdBufferSize, &validBits, 0,
 			false);
 	if (acceptTimeout && result == STATUS_TIMEOUT) {
@@ -858,28 +866,3 @@ rc52x_result_t PCD_MIFARE_Transceive(rc52x_t *rc52x, uint8_t *sendData,	///< Poi
 	}
 	return STATUS_OK;
 } // End PCD_MIFARE_Transceive()
-
-/////////////////////////////////////////////////////////////////////////////////////
-// Convenience functions - does not add extra functionality
-/////////////////////////////////////////////////////////////////////////////////////
-
-/**
- * Returns true if a PICC responds to PICC_CMD_REQA.
- * Only "new" cards in state IDLE are invited. Sleeping cards in state HALT are ignored.
- * 
- * @return bool
- */
-bool PICC_IsNewCardPresent(rc52x_t *rc52x) {
-	uint8_t bufferATQA[2];
-	uint8_t bufferSize = sizeof(bufferATQA);
-
-	// Reset baud rates
-	rc52x_set_reg8(rc52x, MFRC_REG_TxModeReg, 0x00);
-	rc52x_set_reg8(rc52x, MFRC_REG_RxModeReg, 0x00);
-	// Reset ModWidthReg
-	rc52x_set_reg8(rc52x, MFRC_REG_ModWidthReg, 0x26);
-
-	rc52x_result_t result = PICC_RequestA(rc52x, bufferATQA, &bufferSize);
-	return (result == STATUS_OK || result == STATUS_COLLISION);
-} // End PICC_IsNewCardPresent()
-
