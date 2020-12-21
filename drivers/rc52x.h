@@ -195,6 +195,13 @@ uint8_t rc52x_communicate_with_picc(rc52x_t *rc52x,
 		uint8_t rxAlign ///< In: Defines the bit position in backData[0] for the first bit received. Default 0.
 		) ;
 
+
+int mfrc522_send(rc52x_t *rc52x, uint8_t reg, uint8_t *data, size_t amount);
+int rc52x_set_reg8(rc52x_t *rc52x, uint8_t reg, uint8_t value);
+int rc52x_get_reg8(rc52x_t *rc52x, uint8_t reg, uint8_t *value);
+int rc52x_and_reg8(rc52x_t *rc52x, uint8_t reg, uint8_t value);
+int rc52x_or_reg8(rc52x_t *rc52x, uint8_t reg, uint8_t value);
+
 #endif // _MFCR522_H_
 
 

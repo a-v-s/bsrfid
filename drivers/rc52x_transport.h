@@ -49,6 +49,7 @@ SOFTWARE.
 #define MFRC522_DIR_SEND        (0x00)
 #define MFRC522_SPI_REG_SHIFT   (1) 
 
+
 typedef int(*mfrc_transport_transmit_f)(uint8_t *data, size_t amount, bool nostop);
 typedef int(*mfrc_transport_recveive_f)(uint8_t *data, size_t amount, bool nostop);
 typedef int(*mfrc_transport_transceive_f)(uint8_t *data, size_t amount);

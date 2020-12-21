@@ -55,7 +55,6 @@ const uint8_t FM17522_firmware_reference[] = { 0x00, 0xD6, 0x78, 0x8C, 0xE2,
 // Size of the MFRC522 FIFO
 static uint8_t FIFO_SIZE = 64;		// The FIFO is 64 uint8_ts.
 // Default value for unused pin
-static uint8_t UNUSED_PIN = UINT8_MAX;
 
 // MFRC522 RxGain[2:0] masks, defines the receiver's signal voltage gain factor (on the PCD).
 // Described in 9.3.3.6 / table 98 of the datasheet at http://www.nxp.com/documents/data_sheet/MFRC522.pdf

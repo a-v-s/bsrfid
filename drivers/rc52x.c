@@ -313,7 +313,7 @@ uint8_t rc52x_communicate_with_picc(rc52x_t *rc52x, uint8_t command,///< The com
 
 
 //--
-uint8_t PCD_CalculateCRC(rc52x_t*rc52x,	uint8_t *data,		///< In: Pointer to the data to transfer to the FIFO for CRC calculation.
+uint8_t _PCD_CalculateCRC(rc52x_t*rc52x,	uint8_t *data,		///< In: Pointer to the data to transfer to the FIFO for CRC calculation.
 		uint8_t length,	///< In: The number of bytes to transfer.
 		uint8_t *result	///< Out: Pointer to result buffer. Result is written to result[0..1], low byte first.
 					 ) {
@@ -356,7 +356,7 @@ uint8_t PCD_CalculateCRC(rc52x_t*rc52x,	uint8_t *data,		///< In: Pointer to the 
 
 
 // Ported "Unduino'd" from https://github.com/pkourany/MFRC522_RFID_Library
-uint8_t PICC_Select(rc52x_t *rc52x, Uid *uid,///< Pointer to Uid struct. Normally output, but can also be used to supply a known UID.
+uint8_t _PICC_Select(rc52x_t *rc52x, Uid *uid,///< Pointer to Uid struct. Normally output, but can also be used to supply a known UID.
 		uint8_t validBits///< The number of known UID bits supplied in *uid. Normally 0. If set you must also supply uid->size.
 		) {
 	bool uidComplete;
@@ -475,7 +475,7 @@ uint8_t PICC_Select(rc52x_t *rc52x, Uid *uid,///< Pointer to Uid struct. Normall
 
 				// TODO
 				// Calculate CRC_A
-				result = PCD_CalculateCRC(rc52x, buffer, 7, &buffer[7]);
+				result = _PCD_CalculateCRC(rc52x, buffer, 7, &buffer[7]);
 				if (result != STATUS_OK) {
 					return result;
 				}
