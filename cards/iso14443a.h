@@ -8,6 +8,10 @@
 #ifndef BSRFID_CARDS_ISO14443A_H_
 #define BSRFID_CARDS_ISO14443A_H_
 
+#include <stdlib.h>
+#include <stdint.h>
+#include <stdbool.h>
+
 #pragma pack (push,1)
 
 typedef enum {

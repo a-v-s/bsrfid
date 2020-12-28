@@ -72,9 +72,7 @@ typedef int(*delay_ms_f)(int ms);
 
 typedef struct {
 	mfrc_transport_t transport;
-	mfrc_transport_transmit_f transmit;
-	mfrc_transport_recveive_f receive;
-	mfrc_transport_transceive_f transceive;
+	void* transport_config;
 	delay_ms_f delay_ms;
 } rc52x_t;
 
@@ -93,7 +91,7 @@ typedef struct {
 // -----------------------------------------------------------------------------
 
 #define RC52X_REG_CommandReg         (0x01)
-#define RC52X_REG_ComlEnReg         	(0x02)
+#define RC52X_REG_ComlEnReg          (0x02)
 #define RC52X_REG_DivlEnReg          (0x03)
 #define RC52X_REG_ComIrqReg          (0x04)
 #define RC52X_REG_DivIrqReg          (0x05)
@@ -200,7 +198,7 @@ typedef enum {
 
 
 uint8_t rc52x_communicate_with_picc(rc52x_t *rc52x,
-		uint8_t command,///< The command to execute. One of the PCD_Command enums.
+		uint8_t command,///< The command to execute. One of the RC52X_Command enums.
 		uint8_t waitIRq,///< The bits in the ComIrqReg register that signals successful completion of the command.
 		uint8_t *sendData,	///< Pointer to the data to transfer to the FIFO.
 		uint8_t sendLen,		///< Number of bytes to transfer to the FIFO.
@@ -229,7 +227,7 @@ int rc52x_or_reg8(rc52x_t *rc52x, uint8_t reg, uint8_t value);
 
 // MFRC522 RxGain[2:0] masks, defines the receiver's signal voltage gain factor (on the PCD).
 // Described in 9.3.3.6 / table 98 of the datasheet at http://www.nxp.com/documents/data_sheet/MFRC522.pdf
-enum PCD_RxGain {
+enum RC52X_RxGain {
 	RxGain_18dB = 0x00 << 4,	// 000b - 18 dB, minimum
 	RxGain_23dB = 0x01 << 4,	// 001b - 23 dB
 	RxGain_18dB_2 = 0x02 << 4,// 010b - 18 dB, it seems 010b is a duplicate for 000b
@@ -274,33 +272,33 @@ typedef struct {
 /////////////////////////////////////////////////////////////////////////////////////
 // Basic interface functions for communicating with the MFRC522
 /////////////////////////////////////////////////////////////////////////////////////
-rc52x_result_t PCD_CalculateCRC(rc52x_t *rc52x, uint8_t *data, uint8_t length,
+rc52x_result_t RC52X_CalculateCRC(rc52x_t *rc52x, uint8_t *data, uint8_t length,
 		uint8_t *result);
 
 /////////////////////////////////////////////////////////////////////////////////////
 // Functions for manipulating the MFRC522
 /////////////////////////////////////////////////////////////////////////////////////
-void PCD_Init(rc52x_t *rc52x);
-void PCD_Reset(rc52x_t *rc52x);
-void PCD_AntennaOn(rc52x_t *rc52x);
-void PCD_AntennaOff(rc52x_t *rc52x);
-uint8_t PCD_GetAntennaGain(rc52x_t *rc52x);
-void PCD_SetAntennaGain(rc52x_t *rc52x, uint8_t mask);
-bool PCD_PerformSelfTest(rc52x_t *rc52x);
+void RC52X_Init(rc52x_t *rc52x);
+void RC52X_Reset(rc52x_t *rc52x);
+void RC52X_AntennaOn(rc52x_t *rc52x);
+void RC52X_AntennaOff(rc52x_t *rc52x);
+uint8_t RC52X_GetAntennaGain(rc52x_t *rc52x);
+void RC52X_SetAntennaGain(rc52x_t *rc52x, uint8_t mask);
+bool RC52X_PerformSelfTest(rc52x_t *rc52x);
 
 /////////////////////////////////////////////////////////////////////////////////////
 // Power control functions
 /////////////////////////////////////////////////////////////////////////////////////
-void PCD_SoftPowerDown(rc52x_t *rc52x);
-void PCD_SoftPowerUp(rc52x_t *rc52x);
+void RC52X_SoftPowerDown(rc52x_t *rc52x);
+void RC52X_SoftPowerUp(rc52x_t *rc52x);
 
 /////////////////////////////////////////////////////////////////////////////////////
 // Functions for communicating with PICCs
 /////////////////////////////////////////////////////////////////////////////////////
-rc52x_result_t PCD_TransceiveData(rc52x_t *rc52x, uint8_t *sendData,
+rc52x_result_t RC52X_TransceiveData(rc52x_t *rc52x, uint8_t *sendData,
 		uint8_t sendLen, uint8_t *backData, uint8_t *backLen,
 		uint8_t *validBits, uint8_t rxAlign, bool checkCRC);
-rc52x_result_t PCD_CommunicateWithPICC(rc52x_t *rc52x, uint8_t command,
+rc52x_result_t RC52X_CommunicateWithPICC(rc52x_t *rc52x, uint8_t command,
 		uint8_t waitIRq, uint8_t *sendData, uint8_t sendLen, uint8_t *backData,
 		uint8_t *backLen, uint8_t *validBits, uint8_t rxAlign, bool checkCRC);
 
