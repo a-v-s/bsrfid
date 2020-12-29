@@ -143,7 +143,7 @@ rc52x_result_t RC52X_CalculateCRC(rc52x_t *rc52x, uint8_t *data, ///< In: Pointe
  * Initializes the MFRC522 chip.
  */
 void RC52X_Init(rc52x_t *rc52x) {
-
+	rc52x->TransceiveData = RC52X_TransceiveData;
 	RC52X_Reset(rc52x);
 
 	// Reset baud rates
@@ -506,10 +506,10 @@ rc52x_result_t PICC_REQA_or_WUPA(rc52x_t *rc52x, uint8_t command, ///< The comma
 	if (bufferATQA == NULL || *bufferSize < 2) {// The ATQA response is 2 uint8_ts long.
 		return STATUS_NO_ROOM;
 	}
-	RC52X_ClearRegisterBitMask(rc52x, RC52X_REG_CollReg, 0x80);// ValuesAfterColl=1 => Bits received after collision are cleared.
+	//RC52X_ClearRegisterBitMask(rc52x, RC52X_REG_CollReg, 0x80);// ValuesAfterColl=1 => Bits received after collision are cleared.
 	validBits = 7;// For REQA and WUPA we need the short frame format - transmit only 7 bits of the last (and only) uint8_t. TxLastBits = BitFramingReg[2..0]
-	status = RC52X_TransceiveData(rc52x, &command, 1, bufferATQA, bufferSize,
-			&validBits, 0, false);
+	status = rc52x->TransceiveData(rc52x, &command, 1, bufferATQA, bufferSize, &validBits, 0, false);
+	//status = RC52X_TransceiveData(rc52x, &command, 1, bufferATQA, bufferSize, &validBits, 0, false);
 	if (status != STATUS_OK) {
 		return status;
 	}

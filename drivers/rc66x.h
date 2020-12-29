@@ -187,3 +187,23 @@ int rc66x_get_chip_version(rc66x_t *rc66x, uint8_t *chip_id);
 
 void RC66X_AntennaOn(rc66x_t *rc66x);
 void RC66X_AntennaOff(rc66x_t *rc66x);
+
+rc52x_result_t RC66X_TransceiveData(rc66x_t *rc66x,uint8_t *sendData, ///< Pointer to the data to transfer to the FIFO.
+		uint8_t sendLen,		///< Number of uint8_ts to transfer to the FIFO.
+		uint8_t *backData,///< nullptr or pointer to buffer if data should be read back after executing the command.
+		uint8_t *backLen,///< In: Max number of uint8_ts to write to *backData. Out: The number of uint8_ts returned.
+		uint8_t *validBits,	///< In/Out: The number of valid bits in the last uint8_t. 0 for 8 valid bits. Default nullptr.
+		uint8_t rxAlign,///< In: Defines the bit position in backData[0] for the first bit received. Default 0.
+		bool checkCRC///< In: True => The last two uint8_ts of the response is assumed to be a CRC_A that must be validated.
+		) ;
+
+rc52x_result_t RC66X_CommunicateWithPICC(rc66x_t *rc66x, uint8_t command,	///< The command to execute. One of the RC52X_Command enums.
+		uint8_t waitIRq,///< The bits in the ComIrqReg register that signals successful completion of the command.
+		uint8_t *sendData,	///< Pointer to the data to transfer to the FIFO.
+		uint8_t sendLen,		///< Number of uint8_ts to transfer to the FIFO.
+		uint8_t *backData,///< nullptr or pointer to buffer if data should be read back after executing the command.
+		uint8_t *backLen,///< In: Max number of uint8_ts to write to *backData. Out: The number of uint8_ts returned.
+		uint8_t *validBits,	///< In/Out: The number of valid bits in the last uint8_t. 0 for 8 valid bits.
+		uint8_t rxAlign,///< In: Defines the bit position in backData[0] for the first bit received. Default 0.
+		bool checkCRC///< In: True => The last two uint8_ts of the response is assumed to be a CRC_A that must be validated.
+		) ;

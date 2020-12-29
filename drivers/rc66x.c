@@ -8,6 +8,8 @@
 
 #include "rc66x.h"
 
+#include "bshal_spim.h"
+
 // expecting 0x18 or 0x1A
 int rc66x_get_chip_version(rc66x_t *rc66x, uint8_t *chip_id) {
 	return rc66x_recv(rc66x, RC66X_REG_Version, chip_id, 1);
@@ -22,8 +24,15 @@ void RC66X_AntennaOff(rc66x_t *rc66x){
 	rc66x_and_reg8(rc66x,RC66X_REG_DrvMode,~0x03);
 }
 
-void RC66X_Init(rc66x_t *rc66x) {
+void RC66X_Reset(rc66x_t *rc66x) {
+	// Note this one reset is active high!
+	bshal_gpio_write_pin(((bshal_spim_t*)(rc66x->transport_config))->nrs_pin, 1);
+	HAL_Delay(1);
+	bshal_gpio_write_pin(((bshal_spim_t*)(rc66x->transport_config))->nrs_pin, 0);
+}
 
+void RC66X_Init(rc66x_t *rc66x) {
+	rc66x->TransceiveData = RC66X_TransceiveData;
 	RC66X_Reset(rc66x);
 
 	/*
@@ -98,7 +107,7 @@ rc52x_result_t RC66X_TransceiveData(rc66x_t *rc66x,uint8_t *sendData, ///< Point
 		bool checkCRC///< In: True => The last two uint8_ts of the response is assumed to be a CRC_A that must be validated.
 		) {
 	uint8_t waitIRq = 0b00010110;		// RxIRq and IdleIRq + ErrIRQ
-	return RC52X_CommunicateWithPICC(rc66x, RC66X_CMD_Transceive, waitIRq,
+	return RC66X_CommunicateWithPICC(rc66x, RC66X_CMD_Transceive, waitIRq,
 			sendData, sendLen, backData, backLen, validBits, rxAlign, checkCRC);
 } // End RC52X_TransceiveData()
 
@@ -130,7 +139,7 @@ rc52x_result_t RC66X_CommunicateWithPICC(rc66x_t *rc66x, uint8_t command,	///< T
 	rc66x_send(rc66x, RC66X_REG_FIFOData, sendData, sendLen);// Write sendData to the FIFO
 	rc66x_set_reg8(rc66x, RC66X_REG_TxDataNum, bitFraming);
 
-	rc66x_get_reg8(rc66x, RC66X_REG_RxBitCtrl, 0x80 | ((0x7&rxAlign)<<4));
+	rc66x_set_reg8(rc66x, RC66X_REG_RxBitCtrl, 0x80 | ((0x7&rxAlign)<<4));
 
 	rc66x_set_reg8(rc66x, RC66X_REG_Command,  command);// Execute the command
 	/* // Not needed on rc66x?
@@ -147,7 +156,7 @@ rc52x_result_t RC66X_CommunicateWithPICC(rc66x_t *rc66x, uint8_t command,	///< T
 	for (i = 2000; i > 0; i--) {
 		uint8_t irq0, irq1;
 		rc66x_get_reg8(rc66x, RC66X_REG_IRQ0, &irq0);
-		rc66x_get_reg8(rc66x, RC66X_REG_IRQ0, &irq1);
+		rc66x_get_reg8(rc66x, RC66X_REG_IRQ1, &irq1);
 		if (irq0 & waitIRq) {// One of the interrupts that signal success has been set.
 			break;
 		}
@@ -161,7 +170,8 @@ rc52x_result_t RC66X_CommunicateWithPICC(rc66x_t *rc66x, uint8_t command,	///< T
 	}
 
 	// Stop now if any errors except collisions were detected.
-	uint8_t errorRegValue = RC66X_ReadRegister(rc66x, RC66X_REG_Error); // ErrorReg[7..0] bits are: WrErr TempErr reserved BufferOvfl CollErr CRCErr ParityErr ProtocolErr
+	uint8_t errorRegValue;
+			rc66x_get_reg8(rc66x, RC66X_REG_Error, &errorRegValue);
 	if (errorRegValue & 0b01100011) {	 // BufferOvfl ParityErr ProtocolErr
 		return STATUS_ERROR;
 	}
@@ -179,7 +189,7 @@ rc52x_result_t RC66X_CommunicateWithPICC(rc66x_t *rc66x, uint8_t command,	///< T
 		*backLen = fifo_data_len;							// Number of bytes returned
 		rc66x_recv(rc66x, RC66X_REG_FIFOData, backData, fifo_data_len);
 
-		rc66x_get_reg8(rc66x, RC66X_REG_TxDataNum, &_validBits);
+		rc66x_get_reg8(rc66x, RC66X_REG_RxBitCtrl, &_validBits);
 		_validBits &= 0x07;// RxLastBits[2:0] indicates the number of valid bits in the last received uint8_t. If this value is 000b, the whole uint8_t is valid.
 		if (validBits) {
 			*validBits = _validBits;

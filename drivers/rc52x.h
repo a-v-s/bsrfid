@@ -68,13 +68,9 @@ will be limited due missing hardware.
 
 #include "rc52x_transport.h"
 
-typedef int(*delay_ms_f)(int ms);
+#include "pdc.h"
+typedef bs_pdc_t rc52x_t ;
 
-typedef struct {
-	mfrc_transport_t transport;
-	void* transport_config;
-	delay_ms_f delay_ms;
-} rc52x_t;
 
 
 
