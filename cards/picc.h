@@ -12,6 +12,8 @@
 #include "iso14443b.h"
 #include "iso15693.h"
 
+#include "pdc.h"
+
 
 typedef enum {
 	picc_protocol_undefined,
@@ -41,4 +43,9 @@ typedef enum {
 		};
 	} picc_t;
 
+
+	rc52x_result_t PICC_REQA_or_WUPA(bs_pdc_t *pdc, uint8_t command, ///< The command to send - PICC_CMD_REQA or PICC_CMD_WUPA
+			uint8_t *bufferATQA, ///< The buffer to store the ATQA (Answer to request) in
+			size_t *bufferSize	///< Buffer size, at least two bytes. Also number of bytes returned if STATUS_OK.
+			) ;
 #endif /* BSRFID_CARDS_PICC_H_ */

@@ -178,18 +178,6 @@ typedef bs_pdc_t rc52x_t ;
 #define RC52X_CMD_SoftReset          (0b1111)
 
 
-typedef enum {
-	STATUS_OK				= 0,	// Success
-	STATUS_ERROR			= -1,	// Error in communication
-	STATUS_HARD_ERROR		= -2,	// Hardware error (eg. I2C NACK)
-	STATUS_COLLISION		= -3,	// Collission detected
-	STATUS_TIMEOUT			= -4,	// Timeout in communication.
-	STATUS_NO_ROOM			= -5,	// A buffer is not big enough.
-	STATUS_INTERNAL_ERROR	= -6,	// Internal error in the code. Should not happen ;-)
-	STATUS_INVALID			= -7,	// Invalid argument.
-	STATUS_CRC_WRONG		= -8,	// The CRC_A does not match
-	STATUS_MIFARE_NACK		= -9,		// A MIFARE PICC responded with NAK.
-} rc52x_result_t;
 
 
 
