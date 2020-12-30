@@ -280,11 +280,12 @@ void RC52X_SoftPowerUp(rc52x_t *rc52x);
 // Functions for communicating with PICCs
 /////////////////////////////////////////////////////////////////////////////////////
 rc52x_result_t RC52X_TransceiveData(rc52x_t *rc52x, uint8_t *sendData,
-		uint8_t sendLen, uint8_t *backData, uint8_t *backLen,
-		uint8_t *validBits, uint8_t rxAlign, bool checkCRC);
+		size_t sendLen, uint8_t *backData, size_t *backLen, uint8_t *validBits,
+		uint8_t rxAlign, uint8_t *collisionPos, bool sendCRC, bool recvCRC);
 rc52x_result_t RC52X_CommunicateWithPICC(rc52x_t *rc52x, uint8_t command,
-		uint8_t waitIRq, uint8_t *sendData, uint8_t sendLen, uint8_t *backData,
-		uint8_t *backLen, uint8_t *validBits, uint8_t rxAlign, bool checkCRC);
+		uint8_t waitIRq, uint8_t *sendData, size_t sendLen, uint8_t *backData,
+		size_t *backLen, uint8_t *validBits, uint8_t rxAlign,
+		uint8_t *collisionPos, bool sendCRC, bool recvCRC);
 
 rc52x_result_t PICC_RequestA(rc52x_t *rc52x, picc_t *picc);
 rc52x_result_t PICC_WakeupA(rc52x_t *rc52x, picc_t *picc);
@@ -294,6 +295,8 @@ rc52x_result_t PICC_Select(rc52x_t *rc52x, picc_t *uid, uint8_t validBits);
 rc52x_result_t PICC_HaltA(rc52x_t *rc52x);
 
 
+
+rc52x_result_t rc52x_set_bit_framing(bs_pdc_t*pdc, int rxAlign, int txLastBits);
 
 
 #endif // _MFCR522_H_

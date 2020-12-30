@@ -8,9 +8,6 @@
 #include "picc.h"
 #include "pdc.h"
 
-
-
-
 /**
  * Transmits a REQuest command, Type A. Invites PICCs in state IDLE to go to READY and prepare for anticollision or selection. 7 bit frame.
  * Beware: When two PICCs are in the field at the same time I often get STATUS_TIMEOUT - probably due do bad antenna design.
@@ -30,7 +27,8 @@ rc52x_result_t PICC_RequestA(bs_pdc_t *pdc, picc_t *picc) {
  * @return STATUS_OK on success, STATUS_??? otherwise.
  */
 rc52x_result_t PICC_WakeupA(bs_pdc_t *pdc, picc_t *picc) {
-	if (picc->protocol != picc_protocol_iso14443a) return STATUS_INVALID;
+	if (picc->protocol != picc_protocol_iso14443a)
+		return STATUS_INVALID;
 	size_t size = sizeof(iso14443a_atqa_t);
 	return PICC_REQA_or_WUPA(pdc, PICC_CMD_WUPA, &picc->atqa, &size);
 } //  // End PICC_WakeupA()
@@ -43,7 +41,7 @@ rc52x_result_t PICC_WakeupA(bs_pdc_t *pdc, picc_t *picc) {
  */
 rc52x_result_t PICC_REQA_or_WUPA(bs_pdc_t *pdc, uint8_t command, ///< The command to send - PICC_CMD_REQA or PICC_CMD_WUPA
 		uint8_t *bufferATQA, ///< The buffer to store the ATQA (Answer to request) in
-		size_t *bufferSize	///< Buffer size, at least two bytes. Also number of bytes returned if STATUS_OK.
+		size_t *bufferSize///< Buffer size, at least two bytes. Also number of bytes returned if STATUS_OK.
 		) {
 	uint8_t validBits;
 	rc52x_result_t status;
@@ -56,7 +54,10 @@ rc52x_result_t PICC_REQA_or_WUPA(bs_pdc_t *pdc, uint8_t command, ///< The comman
 	//RC52X_ClearRegisterBitMask(rc52x, RC52X_REG_CollReg, 0x80);// ValuesAfterColl=1 => Bits received after collision are cleared.
 
 	validBits = 7;// For REQA and WUPA we need the short frame format - transmit only 7 bits of the last (and only) uint8_t. TxLastBits = BitFramingReg[2..0]
-	status = pdc->TransceiveData(pdc, &command, 1, bufferATQA, bufferSize, &validBits, 0, false);
+
+
+	status = pdc->TransceiveData(pdc, &command, 1, bufferATQA, bufferSize,
+			&validBits, 0, NULL, false, false);
 	//status = RC52X_TransceiveData(rc52x, &command, 1, bufferATQA, bufferSize, &validBits, 0, false);
 	if (status != STATUS_OK) {
 		return status;
@@ -66,7 +67,6 @@ rc52x_result_t PICC_REQA_or_WUPA(bs_pdc_t *pdc, uint8_t command, ///< The comman
 	}
 	return STATUS_OK;
 } // End PICC_REQA_or_WUPA()
-
 
 /**
  * Transmits SELECT/ANTICOLLISION commands to select a single PICC.
@@ -89,7 +89,7 @@ rc52x_result_t PICC_REQA_or_WUPA(bs_pdc_t *pdc, uint8_t command, ///< The comman
  *
  * @return STATUS_OK on success, STATUS_??? otherwise.
  */
-rc52x_result_t PICC_Select(bs_pdc_t *rc52x, picc_t *picc, uint8_t validBits) {
+rc52x_result_t PICC_Select(bs_pdc_t *pdc, picc_t *picc, uint8_t validBits) {
 	bool uidComplete;
 	bool selectDone;
 	bool useCascadeTag;
@@ -105,7 +105,8 @@ rc52x_result_t PICC_Select(bs_pdc_t *rc52x, picc_t *picc, uint8_t validBits) {
 	uint8_t rxAlign;// Used in BitFramingReg. Defines the bit position for the first bit received.
 	uint8_t txLastBits;	// Used in BitFramingReg. The number of valid bits in the last transmitted uint8_t.
 	uint8_t *responseBuffer;
-	uint8_t responseLength;
+	size_t responseLength;
+	bool sendCRC;
 
 	// Description of buffer structure:
 	//		uint8_t 0: SEL 				Indicates the Cascade Level: PICC_CMD_SEL_CL1, PICC_CMD_SEL_CL2 or PICC_CMD_SEL_CL3
@@ -135,7 +136,8 @@ rc52x_result_t PICC_Select(bs_pdc_t *rc52x, picc_t *picc, uint8_t validBits) {
 	}
 
 	// Prepare MFRC522
-	RC52X_ClearRegisterBitMask(rc52x, RC52X_REG_CollReg, 0x80);// ValuesAfterColl=1 => Bits received after collision are cleared.
+	// TODO
+	//RC52X_ClearRegisterBitMask(rc52x, RC52X_REG_CollReg, 0x80);// ValuesAfterColl=1 => Bits received after collision are cleared.
 
 	// Repeat Cascade Level loop until we have a complete UID.
 	uidComplete = false;
@@ -145,13 +147,13 @@ rc52x_result_t PICC_Select(bs_pdc_t *rc52x, picc_t *picc, uint8_t validBits) {
 		case 1:
 			buffer[0] = PICC_CMD_SEL_CL1;
 			uidIndex = 0;
-			useCascadeTag = validBits && picc->size > 4;	// When we know that the UID has more than 4 uint8_ts
+			useCascadeTag = validBits && picc->size > 4;// When we know that the UID has more than 4 uint8_ts
 			break;
 
 		case 2:
 			buffer[0] = PICC_CMD_SEL_CL2;
 			uidIndex = 3;
-			useCascadeTag = validBits && picc->size > 7;	// When we know that the UID has more than 7 uint8_ts
+			useCascadeTag = validBits && picc->size > 7;// When we know that the UID has more than 7 uint8_ts
 			break;
 
 		case 3:
@@ -175,14 +177,14 @@ rc52x_result_t PICC_Select(bs_pdc_t *rc52x, picc_t *picc, uint8_t validBits) {
 		if (useCascadeTag) {
 			buffer[index++] = PICC_CMD_CT;
 		}
-		uint8_t uint8_tsToCopy = currentLevelKnownBits / 8
+		uint8_t BytesToCopy = currentLevelKnownBits / 8
 				+ (currentLevelKnownBits % 8 ? 1 : 0); // The number of uint8_ts needed to represent the known bits for this level.
-		if (uint8_tsToCopy) {
-			uint8_t maxuint8_ts = useCascadeTag ? 3 : 4; // Max 4 uint8_ts in each Cascade Level. Only 3 left if we use the Cascade Tag
-			if (uint8_tsToCopy > maxuint8_ts) {
-				uint8_tsToCopy = maxuint8_ts;
+		if (BytesToCopy) {
+			uint8_t maxBytes = useCascadeTag ? 3 : 4; // Max 4 uint8_ts in each Cascade Level. Only 3 left if we use the Cascade Tag
+			if (BytesToCopy > maxBytes) {
+				BytesToCopy = maxBytes;
 			}
-			for (count = 0; count < uint8_tsToCopy; count++) {
+			for (count = 0; count < BytesToCopy; count++) {
 				buffer[index++] = picc->uidByte[uidIndex + count];
 			}
 		}
@@ -200,13 +202,11 @@ rc52x_result_t PICC_Select(bs_pdc_t *rc52x, picc_t *picc, uint8_t validBits) {
 				buffer[1] = 0x70; // NVB - Number of Valid Bits: Seven whole uint8_ts
 				// Calculate BCC - Block Check Character
 				buffer[6] = buffer[2] ^ buffer[3] ^ buffer[4] ^ buffer[5];
-				// Calculate CRC_A
-				result = RC52X_CalculateCRC(rc52x, buffer, 7, &buffer[7]);
-				if (result != STATUS_OK) {
-					return result;
-				}
+
+				sendCRC = true;
+
 				txLastBits = 0; // 0 => All 8 bits are valid.
-				bufferUsed = 9;
+				bufferUsed = 7;
 				// Store response in the last 3 uint8_ts of buffer (BCC and CRC_A - not needed after tx)
 				responseBuffer = &buffer[6];
 				responseLength = 3;
@@ -220,27 +220,17 @@ rc52x_result_t PICC_Select(bs_pdc_t *rc52x, picc_t *picc, uint8_t validBits) {
 				// Store response in the unused part of buffer
 				responseBuffer = &buffer[index];
 				responseLength = sizeof(buffer) - index;
+				sendCRC = false;
 			}
 
-			// Set bit adjustments
 			rxAlign = txLastBits;// Having a separate variable is overkill. But it makes the next line easier to read.
-			rc52x_set_reg8(rc52x, RC52X_REG_BitFramingReg,
-					(rxAlign << 4) + txLastBits);// RxAlign = BitFramingReg[6..4]. TxLastBits = BitFramingReg[2..0]
-
+			uint8_t collisionPos;
 			// Transmit the buffer and receive the response.
-			result = RC52X_TransceiveData(rc52x, buffer, bufferUsed,
+			result = pdc->TransceiveData(pdc, buffer, bufferUsed,
 					responseBuffer, &responseLength, &txLastBits, rxAlign,
-					false);
-			if (result == STATUS_COLLISION) { // More than one PICC in the field => collision.
-				uint8_t valueOfCollReg = RC52X_ReadRegister(rc52x,
-				RC52X_REG_CollReg); // CollReg[7..0] bits are: ValuesAfterColl reserved CollPosNotValid CollPos[4:0]
-				if (valueOfCollReg & 0x20) { // CollPosNotValid
-					return STATUS_COLLISION; // Without a valid collision position we cannot continue
-				}
-				uint8_t collisionPos = valueOfCollReg & 0x1F; // Values 0-31, 0 means bit 32.
-				if (collisionPos == 0) {
-					collisionPos = 32;
-				}
+					&collisionPos, sendCRC, false);
+			if (result == STATUS_COLLISION) {
+
 				if (collisionPos <= currentLevelKnownBits) { // No progress - should not happen
 					return STATUS_INTERNAL_ERROR;
 				}
@@ -268,8 +258,8 @@ rc52x_result_t PICC_Select(bs_pdc_t *rc52x, picc_t *picc, uint8_t validBits) {
 
 		// Copy the found UID uint8_ts from buffer[] to uid->uidByte[]
 		index = (buffer[2] == PICC_CMD_CT) ? 3 : 2; // source index in buffer[]
-		uint8_tsToCopy = (buffer[2] == PICC_CMD_CT) ? 3 : 4;
-		for (count = 0; count < uint8_tsToCopy; count++) {
+		BytesToCopy = (buffer[2] == PICC_CMD_CT) ? 3 : 4;
+		for (count = 0; count < BytesToCopy; count++) {
 			picc->uidByte[uidIndex + count] = buffer[index++];
 		}
 
@@ -277,15 +267,20 @@ rc52x_result_t PICC_Select(bs_pdc_t *rc52x, picc_t *picc, uint8_t validBits) {
 		if (responseLength != 3 || txLastBits != 0) { // SAK must be exactly 24 bits (1 uint8_t + CRC_A).
 			return STATUS_ERROR;
 		}
-		// Verify CRC_A - do our own calculation and store the control in buffer[2..3] - those uint8_ts are not needed anymore.
-		result = RC52X_CalculateCRC(rc52x, responseBuffer, 1, &buffer[2]);
-		if (result != STATUS_OK) {
-			return result;
-		}
+
+		/*
+		 // Verify CRC_A - do our own calculation and store the control in buffer[2..3] - those uint8_ts are not needed anymore.
+		 result = RC52X_CalculateCRC(rc52x, responseBuffer, 1, &buffer[2]);
+		 if (result != STATUS_OK) {
+		 return result;
+		 }
+
 		if ((buffer[2] != responseBuffer[1])
 				|| (buffer[3] != responseBuffer[2])) {
 			return STATUS_CRC_WRONG;
 		}
+		 */
+
 		if (responseBuffer[0] & 0x04) { // Cascade bit set - UID not complete yes
 			cascadeLevel++;
 		} else {

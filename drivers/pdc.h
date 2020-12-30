@@ -35,20 +35,18 @@ typedef enum {
 
 
 
-typedef int (*TransceiveData_f)(void *pdc, uint8_t *sendData, ///< Pointer to the data to transfer to the FIFO.
-		uint8_t sendLen,		///< Number of uint8_ts to transfer to the FIFO.
-		uint8_t *backData,///< nullptr or pointer to buffer if data should be read back after executing the command.
-		uint8_t *backLen,///< In: Max number of uint8_ts to write to *backData. Out: The number of uint8_ts returned.
-		uint8_t *validBits,	///< In/Out: The number of valid bits in the last uint8_t. 0 for 8 valid bits. Default nullptr.
-		uint8_t rxAlign,///< In: Defines the bit position in backData[0] for the first bit received. Default 0.
-		bool checkCRC///< In: True => The last two uint8_ts of the response is assumed to be a CRC_A that must be validated.
-		);
+typedef int (*TransceiveData_f)(void *pdc, uint8_t *sendData, size_t sendLen,
+		uint8_t *backData, size_t *backLen, uint8_t *validBits,
+		uint8_t rxAlign, uint8_t *collisionPos, bool sendCRC, bool recvCRC);
+
+typedef int (*SetBitFraming_f)(void *pdc, int rxAlign, int txLastBits);
 
 typedef struct {
 	mfrc_transport_t transport;
 	void* transport_config;
 	delay_ms_f delay_ms;
 	TransceiveData_f TransceiveData;
+	//SetBitFraming_f SetBitFraming;
 } bs_pdc_t;
 
 

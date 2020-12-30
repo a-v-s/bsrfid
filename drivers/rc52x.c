@@ -144,6 +144,7 @@ rc52x_result_t RC52X_CalculateCRC(rc52x_t *rc52x, uint8_t *data, ///< In: Pointe
  */
 void RC52X_Init(rc52x_t *rc52x) {
 	rc52x->TransceiveData = RC52X_TransceiveData;
+	//rc52x->SetBitFraming = rc52x_set_bit_framing;
 	RC52X_Reset(rc52x);
 
 	// Reset baud rates
@@ -351,16 +352,18 @@ void RC52X_SoftPowerUp(rc52x_t *rc52x) {
  * @return STATUS_OK on success, STATUS_??? otherwise.
  */
 rc52x_result_t RC52X_TransceiveData(rc52x_t *rc52x, uint8_t *sendData, ///< Pointer to the data to transfer to the FIFO.
-		uint8_t sendLen,		///< Number of uint8_ts to transfer to the FIFO.
+		size_t sendLen,		///< Number of uint8_ts to transfer to the FIFO.
 		uint8_t *backData,///< nullptr or pointer to buffer if data should be read back after executing the command.
-		uint8_t *backLen,///< In: Max number of uint8_ts to write to *backData. Out: The number of uint8_ts returned.
+		size_t *backLen,///< In: Max number of uint8_ts to write to *backData. Out: The number of uint8_ts returned.
 		uint8_t *validBits,	///< In/Out: The number of valid bits in the last uint8_t. 0 for 8 valid bits. Default nullptr.
 		uint8_t rxAlign,///< In: Defines the bit position in backData[0] for the first bit received. Default 0.
-		bool checkCRC///< In: True => The last two uint8_ts of the response is assumed to be a CRC_A that must be validated.
+		uint8_t *collisionPos,
+		bool sendCRC ,
+		bool recvCRC
 		) {
 	uint8_t waitIRq = 0x30;		// RxIRq and IdleIRq
 	return RC52X_CommunicateWithPICC(rc52x, RC52X_CMD_Transceive, waitIRq,
-			sendData, sendLen, backData, backLen, validBits, rxAlign, checkCRC);
+			sendData, sendLen, backData, backLen, validBits, rxAlign, collisionPos, sendCRC, recvCRC);
 } // End RC52X_TransceiveData()
 
 /**
@@ -372,16 +375,32 @@ rc52x_result_t RC52X_TransceiveData(rc52x_t *rc52x, uint8_t *sendData, ///< Poin
 rc52x_result_t RC52X_CommunicateWithPICC(rc52x_t *rc52x, uint8_t command,	///< The command to execute. One of the RC52X_Command enums.
 		uint8_t waitIRq,///< The bits in the ComIrqReg register that signals successful completion of the command.
 		uint8_t *sendData,	///< Pointer to the data to transfer to the FIFO.
-		uint8_t sendLen,		///< Number of uint8_ts to transfer to the FIFO.
+		size_t sendLen,		///< Number of uint8_ts to transfer to the FIFO.
 		uint8_t *backData,///< nullptr or pointer to buffer if data should be read back after executing the command.
-		uint8_t *backLen,///< In: Max number of uint8_ts to write to *backData. Out: The number of uint8_ts returned.
+		size_t *backLen,///< In: Max number of uint8_ts to write to *backData. Out: The number of uint8_ts returned.
 		uint8_t *validBits,	///< In/Out: The number of valid bits in the last uint8_t. 0 for 8 valid bits.
 		uint8_t rxAlign,///< In: Defines the bit position in backData[0] for the first bit received. Default 0.
-		bool checkCRC///< In: True => The last two uint8_ts of the response is assumed to be a CRC_A that must be validated.
+		uint8_t *collisionPos,
+		bool sendCRC ,
+		bool recvCRC
 		) {
 	// Prepare values for BitFramingReg
 	uint8_t txLastBits = validBits ? *validBits : 0;
 	uint8_t bitFraming = (rxAlign << 4) + txLastBits;// RxAlign = BitFramingReg[6..4]. TxLastBits = BitFramingReg[2..0]
+
+
+
+	if (sendCRC) {
+		rc52x_result_t result = RC52X_CalculateCRC(rc52x, sendData, sendLen,
+				&sendData[sendLen]);
+		if (result != STATUS_OK) {
+			return result;
+		}
+		sendLen += 2;
+	}
+
+	RC52X_ClearRegisterBitMask(rc52x, RC52X_REG_CollReg, 0x80);
+
 
 	rc52x_set_reg8(rc52x, RC52X_REG_CommandReg, RC52X_CMD_Idle);// Stop any active command.
 	rc52x_set_reg8(rc52x, RC52X_REG_ComIrqReg, 0x7F);// Clear all seven interrupt request bits
@@ -437,11 +456,26 @@ rc52x_result_t RC52X_CommunicateWithPICC(rc52x_t *rc52x, uint8_t command,	///< T
 
 	// Tell about collisions
 	if (errorRegValue & 0x08) {		// CollErr
+		if (!collisionPos)
+			return STATUS_COLLISION;
+
+		uint8_t valueOfCollReg = RC52X_ReadRegister(rc52x, RC52X_REG_CollReg); // CollReg[7..0] bits are: ValuesAfterColl reserved CollPosNotValid CollPos[4:0]
+		if (valueOfCollReg & 0x20) { // CollPosNotValid
+			*collisionPos = -1;
+			return STATUS_COLLISION; // Without a valid collision position we cannot continue
+		}
+
+		*collisionPos = valueOfCollReg & 0x1F; // Values 0-31, 0 means bit 32.
+
+		if (*collisionPos == 0) {
+			*collisionPos = 32;
+		}
+
 		return STATUS_COLLISION;
 	}
 
 	// Perform CRC_A validation if requested.
-	if (backData && backLen && checkCRC) {
+	if (backData && backLen && recvCRC) {
 		// In this case a MIFARE Classic NAK is not OK.
 		if (*backLen == 1 && _validBits == 4) {
 			return STATUS_MIFARE_NACK;
@@ -508,7 +542,7 @@ rc52x_result_t RC52X_Authenticate(rc52x_t *rc52x, uint8_t command, ///< PICC_CMD
 
 	// Start the authentication.
 	return RC52X_CommunicateWithPICC(rc52x, RC52X_CMD_MFAuthent, waitIRq,
-			&sendData[0], sizeof(sendData), NULL, 0, NULL, 0, false);
+			&sendData[0], sizeof(sendData), NULL, 0, NULL, 0, NULL, false, false);
 } // End RC52X_Authenticate()
 
 /**
@@ -543,6 +577,7 @@ rc52x_result_t RC52X_MIFARE_Transceive(rc52x_t *rc52x, uint8_t *sendData,	///< P
 		return STATUS_INVALID;
 	}
 
+	/*// moved into CommunicateWithPICC
 	// Copy sendData[] to cmdBuffer[] and add CRC_A
 	memcpy(cmdBuffer, sendData, sendLen);
 	result = RC52X_CalculateCRC(rc52x, cmdBuffer, sendLen, &cmdBuffer[sendLen]);
@@ -550,14 +585,16 @@ rc52x_result_t RC52X_MIFARE_Transceive(rc52x_t *rc52x, uint8_t *sendData,	///< P
 		return result;
 	}
 	sendLen += 2;
+	*/
+
 
 	// Transceive the data, store the reply in cmdBuffer[]
 	uint8_t waitIRq = 0x30;		// RxIRq and IdleIRq
 	uint8_t cmdBufferSize = sizeof(cmdBuffer);
 	uint8_t validBits = 0;
 	result = RC52X_CommunicateWithPICC(rc52x, RC52X_CMD_Transceive, waitIRq,
-			cmdBuffer, sendLen, cmdBuffer, &cmdBufferSize, &validBits, 0,
-			false);
+			cmdBuffer, sendLen, cmdBuffer, &cmdBufferSize, &validBits, 0, NULL,
+			true, false );
 	if (acceptTimeout && result == STATUS_TIMEOUT) {
 		return STATUS_OK;
 	}
@@ -575,3 +612,6 @@ rc52x_result_t RC52X_MIFARE_Transceive(rc52x_t *rc52x, uint8_t *sendData,	///< P
 } // End RC52X_MIFARE_Transceive()
 
 
+rc52x_result_t rc52x_set_bit_framing(bs_pdc_t*pdc, int rxAlign, int txLastBits) {
+	return rc52x_set_reg8(pdc, RC52X_REG_BitFramingReg, 	(rxAlign << 4) | txLastBits);// RxAlign = BitFramingReg[6..4]. TxLastBits = BitFramingReg[2..0]
+}

@@ -98,17 +98,19 @@ void RC66X_Init(rc66x_t *rc66x) {
  *
  * @return STATUS_OK on success, STATUS_??? otherwise.
  */
-rc52x_result_t RC66X_TransceiveData(rc66x_t *rc66x,uint8_t *sendData, ///< Pointer to the data to transfer to the FIFO.
-		uint8_t sendLen,		///< Number of uint8_ts to transfer to the FIFO.
-		uint8_t *backData,///< nullptr or pointer to buffer if data should be read back after executing the command.
-		uint8_t *backLen,///< In: Max number of uint8_ts to write to *backData. Out: The number of uint8_ts returned.
-		uint8_t *validBits,	///< In/Out: The number of valid bits in the last uint8_t. 0 for 8 valid bits. Default nullptr.
-		uint8_t rxAlign,///< In: Defines the bit position in backData[0] for the first bit received. Default 0.
-		bool checkCRC///< In: True => The last two uint8_ts of the response is assumed to be a CRC_A that must be validated.
+rc52x_result_t RC66X_TransceiveData(rc66x_t *rc66x,uint8_t *sendData,
+		uint8_t sendLen,
+		uint8_t *backData,
+		uint8_t *backLen,
+		uint8_t *validBits,
+		uint8_t rxAlign,
+		uint8_t * collpos,
+		bool sendCRC ,
+		bool recvCRC
 		) {
 	uint8_t waitIRq = 0b00010110;		// RxIRq and IdleIRq + ErrIRQ
 	return RC66X_CommunicateWithPICC(rc66x, RC66X_CMD_Transceive, waitIRq,
-			sendData, sendLen, backData, backLen, validBits, rxAlign, checkCRC);
+			sendData, sendLen, backData, backLen, validBits, rxAlign,  sendCRC, recvCRC);
 } // End RC52X_TransceiveData()
 
 /**
@@ -125,11 +127,11 @@ rc52x_result_t RC66X_CommunicateWithPICC(rc66x_t *rc66x, uint8_t command,	///< T
 		uint8_t *backLen,///< In: Max number of uint8_ts to write to *backData. Out: The number of uint8_ts returned.
 		uint8_t *validBits,	///< In/Out: The number of valid bits in the last uint8_t. 0 for 8 valid bits.
 		uint8_t rxAlign,///< In: Defines the bit position in backData[0] for the first bit received. Default 0.
-		bool checkCRC///< In: True => The last two uint8_ts of the response is assumed to be a CRC_A that must be validated.
+		bool sendCRC ,
+		bool recvCRC
 		) {
 	// Prepare values for BitFramingReg
 	uint8_t txLastBits = validBits ? *validBits : 0;
-	uint8_t bitFraming = 0x08 | txLastBits; // rxAlign not used yet?? Where should it go?
 
 	rc66x_set_reg8(rc66x, RC66X_REG_Command, RC66X_CMD_Idle);// Stop any active command.
 
@@ -137,16 +139,14 @@ rc52x_result_t RC66X_CommunicateWithPICC(rc66x_t *rc66x, uint8_t command,	///< T
 	rc66x_set_reg8(rc66x, RC66X_REG_IRQ1, 0x7F);// Clear all seven interrupt request bits
 	rc66x_set_reg8(rc66x, RC66X_REG_FIFOControl, 0xB0);	// FlushBuffer = 1, FIFO initialization
 	rc66x_send(rc66x, RC66X_REG_FIFOData, sendData, sendLen);// Write sendData to the FIFO
-	rc66x_set_reg8(rc66x, RC66X_REG_TxDataNum, bitFraming);
-
+	rc66x_set_reg8(rc66x, RC66X_REG_TxDataNum,  0x08 | txLastBits);
 	rc66x_set_reg8(rc66x, RC66X_REG_RxBitCtrl, 0x80 | ((0x7&rxAlign)<<4));
 
+	rc66x_set_reg8(rc66x, RC66X_REG_TxCrcPreset, sendCRC ? 0x19 : 0x00);
+	rc66x_set_reg8(rc66x, RC66X_REG_RxCrcPreset, recvCRC? 0x19 : 0x00);
+
 	rc66x_set_reg8(rc66x, RC66X_REG_Command,  command);// Execute the command
-	/* // Not needed on rc66x?
-	if (command == RC52X_CMD_Transceive) {
-		rc52x_or_reg8(rc52x, RC52X_REG_BitFramingReg, 0x80);	// StartSend=1, transmission of data starts
-	}
-	*/
+
 
 	// Wait for the command to complete.
 	// In RC52X_Init() we set the TAuto flag in TModeReg. This means the timer automatically starts when the PCD stops transmitting.
@@ -202,7 +202,7 @@ rc52x_result_t RC66X_CommunicateWithPICC(rc66x_t *rc66x, uint8_t command,	///< T
 	}
 
 	// Perform CRC_A validation if requested.
-	if (backData && backLen && checkCRC) {
+	if (backData && backLen && recvCRC) {
 		// In this case a MIFARE Classic NAK is not OK.
 		if (*backLen == 1 && _validBits == 4) {
 			return STATUS_MIFARE_NACK;
