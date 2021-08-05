@@ -49,18 +49,12 @@ SOFTWARE.
 #define MFRC522_DIR_SEND        (0x00)
 #define MFRC522_SPI_REG_SHIFT   (1) 
 
+
 typedef int(*mfrc_transport_transmit_f)(uint8_t *data, size_t amount, bool nostop);
 typedef int(*mfrc_transport_recveive_f)(uint8_t *data, size_t amount, bool nostop);
 typedef int(*mfrc_transport_transceive_f)(uint8_t *data, size_t amount);
 
-typedef enum {
-    mfrc_transport_undefined,
-    mfrc_transport_spi,
-    mfrc_transport_i2c,
-    mfrc_transport_uart,
-    mfrc_transport_8080,
-    mfrc_transport_6800,
-} mfrc_transport_t;
+
 
 
 
