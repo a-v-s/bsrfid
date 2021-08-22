@@ -90,6 +90,7 @@ int mfrc522_recv(rc52x_t *rc52x, uint8_t reg, uint8_t *data, size_t amount) {
 				else
 					addr = tmpval;
 				break;
+
 			}
 
 		}
@@ -100,6 +101,12 @@ int mfrc522_recv(rc52x_t *rc52x, uint8_t reg, uint8_t *data, size_t amount) {
 		if (result)
 			return result;
 		return bshal_spim_transceive(rc52x->transport_config, data, amount);
+		break;
+
+	case mfrc_transport_i2c:
+		//!! TODO: I²C ADDRESS
+		result = bshal_i2cm_recv_reg(rc52x->transport_config, 0x28, reg, data, amount);
+		return result;
 		break;
 	default:
 		return -1;
@@ -123,7 +130,9 @@ int mfrc522_send(rc52x_t *rc52x, uint8_t reg, uint8_t *data, size_t amount) {
 		return result;
 		break;
 	case mfrc_transport_i2c:
-		addr = reg;
+		//!! TODO: I²C ADDRESS
+		result = bshal_i2cm_send_reg(rc52x->transport_config, 0x28, reg, data, amount);
+		return result;
 		break;
 	case mfrc_transport_uart:
 		addr = reg | MFRC522_DIR_SEND;
