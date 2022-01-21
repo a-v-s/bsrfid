@@ -46,17 +46,17 @@
 int rc66x_recv(rc66x_t *rc66x, uint8_t reg, uint8_t *data, size_t amount) {
 	uint8_t addr;
 	int result = 0;
-	if (!rc66x->transport_config)
+	if (!rc66x->transport_instance.raw)
 		return -1;
 
 
-		switch (rc66x->transport) {
-		case mfrc_transport_spi:
-		case mfrc_transport_uart:
+		switch (rc66x->transport_type) {
+		case bshal_transport_spi:
+		case bshal_transport_uart:
 			addr = (reg << RC66X_SPI_REG_SHIFT) | RC66X_DIR_RECV;
 			memset(data, addr, amount);
 			break;
-		case mfrc_transport_i2c:
+		case bshal_transport_i2c:
 			addr = reg;
 			break;
 		default:
@@ -64,12 +64,12 @@ int rc66x_recv(rc66x_t *rc66x, uint8_t reg, uint8_t *data, size_t amount) {
 		}
 
 
-	switch (rc66x->transport) {
-	case mfrc_transport_spi:
-		result = bshal_spim_transmit(rc66x->transport_config, &addr, 1, true);
+	switch (rc66x->transport_type) {
+	case bshal_transport_spi:
+		result = bshal_spim_transmit(rc66x->transport_instance.spim, &addr, 1, true);
 		if (result)
 			return result;
-		return bshal_spim_transceive(rc66x->transport_config, data, amount);
+		return bshal_spim_transceive(rc66x->transport_instance.spim, data, amount, false);
 		break;
 	default:
 		return -1;
@@ -79,23 +79,23 @@ int rc66x_recv(rc66x_t *rc66x, uint8_t reg, uint8_t *data, size_t amount) {
 int rc66x_send(rc66x_t *rc66x, uint8_t reg, uint8_t *data, size_t amount) {
 	int result = 0;
 	uint8_t addr;
-	if (!rc66x->transport_config)
+	if (!rc66x->transport_instance.raw)
 		return -1;
 
-	switch (rc66x->transport) {
-	case mfrc_transport_spi:
+	switch (rc66x->transport_type) {
+	case bshal_transport_spi:
 		addr = (reg << RC66X_SPI_REG_SHIFT) | RC66X_DIR_SEND;
-		result = bshal_spim_transmit(rc66x->transport_config, &addr, 1, true);
+		result = bshal_spim_transmit(rc66x->transport_instance.spim, &addr, 1, true);
 		if (result)
 			return result;
-		result = bshal_spim_transmit(rc66x->transport_config, data, amount,
+		result = bshal_spim_transmit(rc66x->transport_instance.spim, data, amount,
 				false);
 		return result;
 		break;
-	case mfrc_transport_i2c:
+	case bshal_transport_i2c:
 		addr = reg;
 		break;
-	case mfrc_transport_uart:
+	case bshal_transport_uart:
 		addr = reg | RC66X_DIR_SEND;
 		break;
 	default:

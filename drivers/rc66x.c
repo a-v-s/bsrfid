@@ -25,10 +25,13 @@ void RC66X_AntennaOff(rc66x_t *rc66x){
 }
 
 void RC66X_Reset(rc66x_t *rc66x) {
+	// TODO:  Extract reset pin from SPI struct
+	//			 Current version in SPI struct stores polarity, use it
+
 	// Note this one reset is active high!
-	bshal_gpio_write_pin(((bshal_spim_t*)(rc66x->transport_config))->nrs_pin, 1);
+	bshal_gpio_write_pin(rc66x->transport_instance.spim->rs_pin, 1);
 	HAL_Delay(1);
-	bshal_gpio_write_pin(((bshal_spim_t*)(rc66x->transport_config))->nrs_pin, 0);
+	bshal_gpio_write_pin(rc66x->transport_instance.spim->rs_pin, 0);
 }
 
 void RC66X_Init(rc66x_t *rc66x) {

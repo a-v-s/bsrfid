@@ -46,19 +46,19 @@
 int mfrc522_recv(rc52x_t *rc52x, uint8_t reg, uint8_t *data, size_t amount) {
 	uint8_t addr;
 	int result = 0;
-	if (!rc52x->transport_config)
+	if (!rc52x->transport_instance.raw)
 		return -1;
 
 	if (reg < 0x40) {
-		switch (rc52x->transport) {
-		case mfrc_transport_spi:
+		switch (rc52x->transport_type) {
+		case bshal_transport_spi:
 			addr = (reg << MFRC522_SPI_REG_SHIFT) | MFRC522_DIR_RECV;
 			memset(data, addr, amount);
 			break;
-		case mfrc_transport_i2c:
+		case bshal_transport_i2c:
 			addr = reg;
 			break;
-		case mfrc_transport_uart:
+		case bshal_transport_uart:
 			addr = reg | MFRC522_DIR_RECV;
 			memset(data, addr, amount);
 			break;
@@ -74,8 +74,8 @@ int mfrc522_recv(rc52x_t *rc52x, uint8_t reg, uint8_t *data, size_t amount) {
 
 		int tmpval;
 		for (int i = 0; i < amount; i++) {
-			switch (rc52x->transport) {
-			case mfrc_transport_spi:
+			switch (rc52x->transport_type) {
+			case bshal_transport_spi:
 				tmpval = (((reg & 0x3f) + i) << MFRC522_SPI_REG_SHIFT)
 						| MFRC522_DIR_RECV;
 				if (i)
@@ -83,7 +83,7 @@ int mfrc522_recv(rc52x_t *rc52x, uint8_t reg, uint8_t *data, size_t amount) {
 				else
 					addr = tmpval;
 				break;
-			case mfrc_transport_uart:
+			case bshal_transport_uart:
 				tmpval = ((reg & 0x3f) + i) | MFRC522_DIR_RECV;
 				if (i)
 					data[i - 1] = tmpval;
@@ -95,17 +95,17 @@ int mfrc522_recv(rc52x_t *rc52x, uint8_t reg, uint8_t *data, size_t amount) {
 
 		}
 	}
-	switch (rc52x->transport) {
-	case mfrc_transport_spi:
-		result = bshal_spim_transmit(rc52x->transport_config, &addr, 1, true);
+	switch (rc52x->transport_type) {
+	case bshal_transport_spi:
+		result = bshal_spim_transmit(rc52x->transport_instance.spim, &addr, 1, true);
 		if (result)
 			return result;
-		return bshal_spim_transceive(rc52x->transport_config, data, amount);
+		return bshal_spim_transceive(rc52x->transport_instance.spim, data, amount,false);
 		break;
 
-	case mfrc_transport_i2c:
+	case bshal_transport_i2c:
 		//!! TODO: I²C ADDRESS
-		result = bshal_i2cm_recv_reg(rc52x->transport_config, 0x28, reg, data, amount);
+		result = bshal_i2cm_recv_reg(rc52x->transport_instance.i2cm, 0x28, reg, data, amount);
 		return result;
 		break;
 	default:
@@ -116,25 +116,25 @@ int mfrc522_recv(rc52x_t *rc52x, uint8_t reg, uint8_t *data, size_t amount) {
 int mfrc522_send(rc52x_t *rc52x, uint8_t reg, uint8_t *data, size_t amount) {
 	int result = 0;
 	uint8_t addr;
-	if (!rc52x->transport_config)
+	if (!rc52x->transport_instance.raw)
 		return -1;
 
-	switch (rc52x->transport) {
-	case mfrc_transport_spi:
+	switch (rc52x->transport_type) {
+	case bshal_transport_spi:
 		addr = (reg << MFRC522_SPI_REG_SHIFT) | MFRC522_DIR_SEND;
-		result = bshal_spim_transmit(rc52x->transport_config, &addr, 1, true);
+		result = bshal_spim_transmit(rc52x->transport_instance.spim, &addr, 1, true);
 		if (result)
 			return result;
-		result = bshal_spim_transmit(rc52x->transport_config, data, amount,
+		result = bshal_spim_transmit(rc52x->transport_instance.spim, data, amount,
 				false);
 		return result;
 		break;
-	case mfrc_transport_i2c:
+	case bshal_transport_i2c:
 		//!! TODO: I²C ADDRESS
-		result = bshal_i2cm_send_reg(rc52x->transport_config, 0x28, reg, data, amount);
+		result = bshal_i2cm_send_reg(rc52x->transport_instance.i2cm, 0x28, reg, data, amount);
 		return result;
 		break;
-	case mfrc_transport_uart:
+	case bshal_transport_uart:
 		addr = reg | MFRC522_DIR_SEND;
 		break;
 	default:

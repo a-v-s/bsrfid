@@ -8,6 +8,8 @@
 #ifndef BSRFID_DRIVERS_PDC_H_
 #define BSRFID_DRIVERS_PDC_H_
 
+#include "bshal_transport.h"
+
 typedef int(*delay_ms_f)(int ms);
 
 typedef enum {
@@ -24,14 +26,7 @@ typedef enum {
 } rc52x_result_t;
 
 
-typedef enum {
-    mfrc_transport_undefined,
-    mfrc_transport_spi,
-    mfrc_transport_i2c,
-    mfrc_transport_uart,
-    mfrc_transport_8080,
-    mfrc_transport_6800,
-} mfrc_transport_t;
+
 
 
 
@@ -42,8 +37,8 @@ typedef int (*TransceiveData_f)(void *pdc, uint8_t *sendData, size_t sendLen,
 typedef int (*SetBitFraming_f)(void *pdc, int rxAlign, int txLastBits);
 
 typedef struct {
-	mfrc_transport_t transport;
-	void* transport_config;
+	bshal_transport_type_t transport_type;
+	bshal_transport_instance_t transport_instance;
 	delay_ms_f delay_ms;
 	TransceiveData_f TransceiveData;
 	//SetBitFraming_f SetBitFraming;
