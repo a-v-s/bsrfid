@@ -35,3 +35,19 @@ SOFTWARE.
 Placeholder for planned future implementation.
 
 *******************************************************************************/
+
+
+#include <stdint.h>
+
+typedef struct {
+	uint8_t command;
+	union {
+		uint8_t parameter[260];
+		struct {
+			int :8 ; // padding
+			uint8_t read_data_response[508];
+			uint32_t uint32;
+		};
+	};
+} pn5180_request_t;
+
