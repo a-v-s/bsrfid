@@ -34,6 +34,40 @@ int rc52x_get_chip_version(rc52x_t *rc52x, uint8_t *chip_id) {
 	return mfrc522_recv(rc52x, RC52X_REG_VersionReg, chip_id, 1);
 }
 
+const char * rc52x_get_chip_name(rc52x_t *rc52x) {
+	uint8_t chip_id = 0xFF;
+	int result = rc52x_get_chip_version(rc52x, &chip_id);
+	if (result) return "Error";
+	switch (chip_id) {
+
+	case 0x80:
+		return "PN512 V1";
+	case 0x82:
+
+		return "PN512 V2";
+
+		// Note: this is not in the datasheet
+	case 0x88:
+		return "FM17522";
+
+		// TODO Chip ID for FM17550
+
+	case 0x90:
+		return "MFRC522 V0";
+	case 0x91:
+		return "MFRC522 V1";
+	case 0x92:
+		return "MFRC522 V2";
+
+	case 0xB1:
+		return "MRFC523 V1";
+	case 0xB2:
+		return "MRFC523 V2";
+
+	default:
+		return "Unknown";
+	}
+}
 
 //------------
 // Firmware data for self-test
@@ -68,6 +102,45 @@ const uint8_t MFRC522_firmware_referenceV2_0[] = { 0x00, 0xEB, 0x66, 0xBA, 0x57,
 // TODO: Add references for MFRC523, PN512
 // TODO: Add define guards for inclusion
 
+
+/*
+
+MFRC523 V1 (0xB1)
+00h, C6h, 37h, D5h, 32h, B7h, 57h, 5Ch
+C2h, D8h, 7Ch, 4Dh, D9h, 70h, C7h, 73h
+10h, E6h, D2h, AAh, 5Eh, A1h, 3Eh, 5Ah
+14h, AFh, 30h, 61h, C9h, 70h, DBh, 2Eh
+64h, 22h, 72h, B5h, BDh, 65h, F4h, ECh
+22h, BCh, D3h, 72h, 35h, CDh, AAh, 41h
+1Fh, A7h, F3h, 53h, 14h, DEh, 7Eh, 02h
+D9h, 0Fh, B5h, 5Eh, 25h, 1Dh, 29h, 79h
+
+MFRC523 V2 (0xB2)
+00h, EBh, 66h, BAh, 57h, BFh, 23h, 95h, D0h, E3h, 0Dh, 3Dh, 27h, 89h, 5Ch, DEh, 9Dh,
+3Bh, A7h, 00h, 21h, 5Bh, 89h, 82h, 51h, 3Ah, EBh, 02h, 0Ch, A5h, 00h, 49h, 7Ch,
+84h, 4Dh, B3h, CCh, D2h, 1Bh, 81h, 5Dh, 48h, 76h, D5h, 71h, 61h, 21h, A9h, 86h,
+96h, 83h, 38h, CFh, 9Dh, 5Bh, 6Dh, DCh, 15h, BAh, 3Eh, 7Dh, 95h, 3Bh, 2Fh
+
+PN512 V1 (0x80)
+00h, AAh, E3h, 29h, 0Ch, 10h, 29zhh, 6Bh,
+76h, 8Dh, AFh, 4Bh, A2h, DAh, 76h, 99h
+C7h, 5Eh, 24h, 69h, D2h, BAh, FAh, BCh
+3Eh, DAh, 96h, B5h, F5h, 94h, B0h, 3Ah
+4Eh, C3h, 9Dh, 94h, 76h, 4Ch, EAh, 5Eh
+38h, 10h, 8Fh, 2Dh, 21h, 4Bh, 52h, BFh
+4Eh, C3h, 9Dh, 94h, 76h, 4Ch, EAh, 5Eh
+38h, 10h, 8Fh, 2Dh, 21h, 4Bh, 52h, BFh
+FBh, F4h, 19h, 94h, 82h, 5Ah, 72h, 9Dh
+BAh, 0Dh, 1Fh, 17h, 56h, 22h, B9h, 08h
+
+PN512 V2 (0x82)
+00h, EBh, 66h, BAh, 57h, BFh, 23h, 95h, D0h, E3h, 0Dh, 3Dh, 27h, 89h, 5Ch, DEh,
+9Dh, 3Bh, A7h, 00h, 21h, 5Bh, 89h, 82h, 51h, 3Ah, EBh, 02h, 0Ch, A5h, 00h,
+49h, 7Ch, 84h, 4Dh, B3h, CCh, D2h, 1Bh, 81h, 5Dh, 48h, 76h, D5h, 71h, 61h,
+21h, A9h, 86h, 96h, 83h, 38h, CFh, 9Dh, 5Bh, 6Dh, DCh, 15h, BAh, 3Eh, 7Dh,
+95h, 3Bh, 2Fh
+
+ */
 
 // Clone
 // Fudan Semiconductor FM17522 (0x88)
