@@ -8,6 +8,8 @@
 #include "picc.h"
 #include "pdc.h"
 
+
+
 /**
  * Transmits a REQuest command, Type A. Invites PICCs in state IDLE to go to READY and prepare for anticollision or selection. 7 bit frame.
  * Beware: When two PICCs are in the field at the same time I often get STATUS_TIMEOUT - probably due do bad antenna design.
@@ -328,3 +330,80 @@ rc52x_result_t PICC_HaltA(bs_pdc_t *pdc) {
 	}
 	return result;
 } // End PICC_HaltA()
+
+
+
+
+int MIFARE_GET_VERSION(bs_pdc_t *pdc, picc_t *picc){
+	uint8_t buffer[3];
+	int result;
+	// Build command buffer
+	buffer[0] = 0x60;
+	// Calculate CRC_A
+//	result = RC52X_CalculateCRC(rc52x, buffer, 1, &buffer[2]);
+//	if (result != STATUS_OK) {
+//		return result;
+//	}
+	size_t backsize = 10;
+
+
+	return pdc->TransceiveData(pdc, buffer, 1, &picc->get_version_response, &backsize,
+				NULL, 0, NULL, true, true);
+
+
+}
+
+
+int MIFARE_AUTHA(bs_pdc_t *pdc, picc_t *picc, int page){
+	uint8_t buffer[4];
+	int result;
+	// Build command buffer
+	buffer[0] = 0x60;
+	buffer[1] = page;
+
+	size_t backsize = 4;
+
+	return pdc->TransceiveData(pdc, buffer, 2, &picc->get_version_response, &backsize,
+				NULL, 0, NULL, true, false);
+
+
+//	uint8_t buffer[8];
+//	int result;
+//	// Build command buffer
+//	buffer[0] = 0x60;
+//	buffer[1] = page;
+//	buffer[1] = 0xff;
+//	buffer[2] =0xff;
+//	buffer[3] =0xff;
+//	buffer[4] =0xff;
+//
+//
+//	size_t backsize = 4;
+//
+//	return pdc->TransceiveData(pdc, buffer, 6, &picc->get_version_response, &backsize,
+//				NULL, 0, NULL, true, false);
+
+
+
+
+
+
+
+}
+
+
+int MIFARE_READ(bs_pdc_t *pdc, picc_t *picc, int page, uint8_t* data){
+	uint8_t buffer[4];
+	int result;
+	// Build command buffer
+	buffer[0] = 0x30;
+	buffer[1] = page;
+
+	size_t backsize = 18;
+
+	return pdc->TransceiveData(pdc, buffer, 2, data, &backsize,
+				NULL, 0, NULL, true, false);
+
+
+}
+

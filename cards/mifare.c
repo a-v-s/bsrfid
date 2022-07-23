@@ -507,3 +507,6 @@ bool MIFARE_UnbrickUidSector(bool logErrors) {
 	}
 	return true;
 }
+
+
+

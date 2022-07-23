@@ -41,6 +41,24 @@ typedef enum {
 				iso14443a_atqa_t   atqa;
 			};
 		};
+		uint8_t card_type;//TODO
+		struct {
+			uint8_t fixed_header;
+			uint8_t vendor_id;
+			uint8_t product_type;
+			uint8_t product_subtype;
+			uint8_t product_version_major;
+			uint8_t product_version_minor;
+			uint8_t storage_size;
+			uint8_t protocol_type;
+			uint16_t crc;
+		} get_version_response;
+		struct {
+			uint8_t page_count;
+			uint8_t page_size;
+			uint8_t page_offset;
+			// NB... for MFC more is needed as we need to skip pages
+		} memory_stucture;
 	} picc_t;
 
 
