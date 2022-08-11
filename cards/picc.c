@@ -8,6 +8,8 @@
 #include "picc.h"
 #include "pdc.h"
 
+
+
 /**
  * Transmits a REQuest command, Type A. Invites PICCs in state IDLE to go to READY and prepare for anticollision or selection. 7 bit frame.
  * Beware: When two PICCs are in the field at the same time I often get STATUS_TIMEOUT - probably due do bad antenna design.
@@ -307,19 +309,14 @@ rc52x_result_t PICC_HaltA(bs_pdc_t *pdc) {
 	// Build command buffer
 	buffer[0] = PICC_CMD_HLTA;
 	buffer[1] = 0;
-	// Calculate CRC_A
-	result = RC52X_CalculateCRC(pdc, buffer, 2, &buffer[2]);
-	if (result != STATUS_OK) {
-		return result;
-	}
 
 	// Send the command.
 	// The standard says:
 	//		If the PICC responds with any modulation during a period of 1 ms after the end of the frame containing the
 	//		HLTA command, this response shall be interpreted as 'not acknowledge'.
 	// We interpret that this way: Only STATUS_TIMEOUT is a success.
-	result = RC52X_TransceiveData(pdc, buffer, sizeof(buffer), NULL, 0, NULL, 0,
-			false);
+	result = pdc->TransceiveData(pdc, buffer, 2, NULL, NULL, NULL, 0, NULL, true, true);
+
 	if (result == STATUS_TIMEOUT) {
 		return STATUS_OK;
 	}
@@ -328,3 +325,187 @@ rc52x_result_t PICC_HaltA(bs_pdc_t *pdc) {
 	}
 	return result;
 } // End PICC_HaltA()
+
+
+
+int PICC_RATS(bs_pdc_t *pdc, picc_t *picc){
+	int status;
+	uint8_t buffer[4];
+
+	buffer[0] = PICC_CMD_RATS;
+	buffer[1] = 0x00; // 0x00 = 16 bytes
+
+	size_t backsize = 16;
+	status =  pdc->TransceiveData(pdc, buffer, 2, &picc->rats, &backsize,
+				NULL, 0, NULL, true, true);
+	if (status) return status;
+//
+//	// Do we have to send PPS before we are allowed to communicate?
+//
+//	buffer[0] = 0xD0;	// CID is hardcoded as 0 in RATS
+//	buffer[1] = 0x01;	// PPS0 indicates whether PPS1 is present
+//
+//	status =  pdc->TransceiveData(pdc, buffer, 2, NULL, NULL,
+//				NULL, 0, NULL, true, true);
+
+
+	// Since I am in 14443-4 mode,
+	// Do I need to send some SELECT_APPLICATION command or so?
+
+	return status;
+
+
+
+}
+
+
+int MIFARE_GET_VERSION(bs_pdc_t *pdc, picc_t *picc){
+	uint8_t buffer[3];
+	int result;
+	// Build command buffer
+	buffer[0] = 0x60;
+	// Calculate CRC_A
+//	result = RC52X_CalculateCRC(rc52x, buffer, 1, &buffer[2]);
+//	if (result != STATUS_OK) {
+//		return result;
+//	}
+	size_t backsize = 10;
+
+
+	return pdc->TransceiveData(pdc, buffer, 1, &picc->get_version_response, &backsize,
+				NULL, 0, NULL, true, true);
+
+
+}
+
+int DESFIRE_GET_VERSION(bs_pdc_t *pdc, picc_t *picc){
+	uint8_t buffer[7] =
+			{
+					0x90 ,0x60 ,0x00 ,0x00 ,0x00
+			};
+	int result;
+
+	size_t backsize = 10;
+
+
+	int status =  pdc->TransceiveData(pdc, buffer, 5, &picc->get_version_response, &backsize,
+				NULL, 0, NULL, true, true);
+
+	return status;
+
+
+}
+
+//
+
+
+int MIFARE_AUTHA(bs_pdc_t *pdc, picc_t *picc, int page){
+// TODO / PDC Specific
+}
+
+
+int MIFARE_READ(bs_pdc_t *pdc, picc_t *picc, int page, uint8_t* data){
+	uint8_t buffer[4];
+	int result;
+	// Build command buffer
+	buffer[0] = 0x30;
+	buffer[1] = page;
+
+	size_t backsize = 18;
+	uint8_t validBits;
+
+	result = pdc->TransceiveData(pdc, buffer, 2, data, &backsize,
+				&validBits, 0, NULL, true, false);
+
+	if (STATUS_OK == result && 1 == backsize && 4 == validBits) {
+		// We've received a status in stead of data
+		switch(*data) {
+		case 0x0:
+			// invalid argument
+			result = STATUS_INVALID;
+			break;
+		case 0x1:
+			// crc error
+			result = STATUS_CRC_WRONG;
+			break;
+		case 0x4:
+			// auth error
+			result = STATUS_AUTH_ERROR;
+			break;
+		case 0x5:
+			// eeprom error
+			result = STATUS_EEPROM_ERROR;
+			break;
+		case 0xa:
+			// no error
+			// should not get a status when
+			// the read operation is valid
+		default:
+			result = STATUS_ERROR;
+			break;
+		}
+	}
+
+	return result;
+}
+
+
+int MFU_Write(bs_pdc_t *pdc, picc_t *picc, int page, uint8_t* data){
+	uint8_t buffer[8];
+	int result;
+	// Build command buffer
+	buffer[0] = 0xA2;
+	buffer[1] = page;
+	memcpy(buffer+2, data,4);
+
+	uint8_t backBuffer[1];
+	size_t backsize = 1;
+	uint8_t validBits;
+
+	result = pdc->TransceiveData(pdc, buffer, 6, backBuffer, &backsize,
+				&validBits, 0, NULL, true, false);
+
+	// On RC522:
+	// Expecting valid bits = 4, value 0xA
+	// Getting   valid bits = 6, value 0x28
+
+	// on RC663:
+	// Getting expected results
+
+	if ( 1 == backsize && validBits > 4) {
+		*backBuffer >>= (validBits - 4);
+		validBits = 4;
+	}
+
+	if (STATUS_OK == result && 1 == backsize && 4 == validBits) {
+		// We've received a status in stead of data
+		switch(*backBuffer) {
+		case 0x0:
+			// invalid argument
+			result = STATUS_INVALID;
+			break;
+		case 0x1:
+			// crc error
+			result = STATUS_CRC_WRONG;
+			break;
+		case 0x4:
+			// auth error
+			result = STATUS_AUTH_ERROR;
+			break;
+		case 0x5:
+			// eeprom error
+			result = STATUS_EEPROM_ERROR;
+			break;
+		case 0xa:
+			// Expecting this result when writing
+			result = STATUS_OK;
+			break;
+		default:
+			result = STATUS_ERROR;
+			break;
+		}
+	}
+
+	return result;
+}
+

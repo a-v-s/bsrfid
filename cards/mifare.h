@@ -12,8 +12,8 @@ typedef enum {
 	// The commands used for MIFARE Classic (from http://www.mouser.com/ds/2/302/MF1S503x-89574.pdf, Section 9)
 	// Use PCD_MFAuthent to authenticate access to a sector, then use these commands to read/write/modify the blocks on the sector.
 	// The read/write commands can also be used for MIFARE Ultralight.
-	PICC_CMD_MF_AUTH_KEY_A = 0x60,		// Perform authentication with Key A
-	PICC_CMD_MF_AUTH_KEY_B = 0x61,		// Perform authentication with Key B
+	PICC_CMD_MFC_AUTH_KEY_A = 0x60,		// Perform authentication with Key A
+	PICC_CMD_MFC_AUTH_KEY_B = 0x61,		// Perform authentication with Key B
 	PICC_CMD_MF_READ = 0x30,// Reads one 16 uint8_t block from the authenticated sector of the PICC. Also used for MIFARE Ultralight.
 	PICC_CMD_MF_WRITE = 0xA0,// Writes one 16 uint8_t block to the authenticated sector of the PICC. Called "COMPATIBILITY WRITE" for MIFARE Ultralight.
 	PICC_CMD_MF_DECREMENT = 0xC0,// Decrements the contents of a block and stores the result in the internal data register.
@@ -24,6 +24,8 @@ typedef enum {
 	// The PICC_CMD_MF_READ and PICC_CMD_MF_WRITE can also be used for MIFARE Ultralight.
 	PICC_CMD_UL_WRITE = 0xA2		// Writes one 4 uint8_t page to the PICC.
 	} mifare_command_t;
+
+#define PICC_CMD_MF_GET_VERSION	=	0x60; // overlaps PICC_CMD_MFC_AUTH_KEY_A
 
 /////////////////////////////////////////////////////////////////////////////////////
 // Functions for communicating with MIFARE PICCs

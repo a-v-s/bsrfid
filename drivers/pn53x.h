@@ -35,3 +35,8 @@ SOFTWARE.
 This file is a placeholder for planned support.
 
 *******************************************************************************/
+
+#include "pdc.h"
+typedef bs_pdc_t pn53x_t;
+
+int pn53x_get_firmware_version(pn53x_t *pn53x, uint32_t *chip_id) ;

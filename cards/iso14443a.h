@@ -47,8 +47,8 @@ typedef struct {
 	};
 } iso14443a_atqa_t;
 
-typedef struct {
-	union {
+typedef union {
+	struct {
 		// N.B. As found in documentation, (eg. NXP AN10833, AN10834)
 		// the bits start counting at bit1 in stead of bit0.
 		// This document only discusses the bits 3, 6 and 7.
