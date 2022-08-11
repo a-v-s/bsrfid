@@ -23,6 +23,8 @@ typedef enum {
 	STATUS_INVALID			= -7,	// Invalid argument.
 	STATUS_CRC_WRONG		= -8,	// The CRC_A does not match
 	STATUS_MIFARE_NACK		= -9,		// A MIFARE PICC responded with NAK.
+	STATUS_AUTH_ERROR		= -10,
+	STATUS_EEPROM_ERROR		= -11,
 } rc52x_result_t;
 
 

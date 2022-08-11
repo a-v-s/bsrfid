@@ -241,6 +241,9 @@ void RC52X_Init(rc52x_t *rc52x) {
 	// Set Bit 4 in ControlReg: Set to logic 1, the PN512 acts as initiator, otherwise it acts as target
 	rc52x_set_reg8(rc52x, RC52X_REG_ControlReg, 0x10);
 
+	// testing
+	// RC52X_SetAntennaGain(rc52x,RxGain_48dB);
+
 	RC52X_AntennaOn(rc52x);// Enable the antenna driver pins TX1 and TX2 (they were disabled by the reset)
 } // End RC52X_Init()
 
@@ -301,7 +304,7 @@ uint8_t RC52X_GetAntennaGain(rc52x_t *rc52x) {
 void RC52X_SetAntennaGain(rc52x_t *rc52x, uint8_t mask) {
 	if (RC52X_GetAntennaGain(rc52x) != mask) { // only bother if there is a change
 		RC52X_ClearRegisterBitMask(rc52x, RC52X_REG_RFCfgReg, (0x07 << 4)); // clear needed to allow 000 pattern
-		RC52X_SetRegisterBitMask(rc52x, RC52X_REG_RFCfgReg, mask & (0x07 << 4)); // only set RxGain[2:0] bits
+		rc52x_set_reg8(rc52x, RC52X_REG_RFCfgReg, mask & (0x07 << 4)); // only set RxGain[2:0] bits
 	}
 } // End RC52X_SetAntennaGain()
 
@@ -471,13 +474,26 @@ rc52x_result_t RC52X_CommunicateWithPICC(rc52x_t *rc52x, uint8_t command,	///< T
 
 
 
+//	if (sendCRC) {
+//		rc52x_result_t result = RC52X_CalculateCRC(rc52x, sendData, sendLen,
+//				&sendData[sendLen]);
+//		if (result != STATUS_OK) {
+//			return result;
+//		}
+//		sendLen += 2;
+//	}
+
+
 	if (sendCRC) {
-		rc52x_result_t result = RC52X_CalculateCRC(rc52x, sendData, sendLen,
-				&sendData[sendLen]);
-		if (result != STATUS_OK) {
-			return result;
-		}
-		sendLen += 2;
+		rc52x_or_reg8(rc52x, RC52X_REG_TxModeReg, 0x80);
+	} else {
+		rc52x_and_reg8(rc52x, RC52X_REG_TxModeReg, ~0x80);
+	}
+
+	if (recvCRC) {
+		rc52x_or_reg8(rc52x, RC52X_REG_RxModeReg, 0x80);
+	} else {
+		rc52x_and_reg8(rc52x, RC52X_REG_RxModeReg, ~0x80);
 	}
 
 	RC52X_ClearRegisterBitMask(rc52x, RC52X_REG_CollReg, 0x80);
@@ -577,17 +593,17 @@ rc52x_result_t RC52X_CommunicateWithPICC(rc52x_t *rc52x, uint8_t command,	///< T
 		if (*backLen < 2 || _validBits != 0) {
 			return STATUS_CRC_WRONG;
 		}
-		// Verify CRC_A - do our own calculation and store the control in controlBuffer.
-		uint8_t controlBuffer[2];
-		rc52x_result_t status = RC52X_CalculateCRC(rc52x, &backData[0],
-				*backLen - 2, &controlBuffer[0]);
-		if (status != STATUS_OK) {
-			return status;
-		}
-		if ((backData[*backLen - 2] != controlBuffer[0])
-				|| (backData[*backLen - 1] != controlBuffer[1])) {
-			return STATUS_CRC_WRONG;
-		}
+//		// Verify CRC_A - do our own calculation and store the control in controlBuffer.
+//		uint8_t controlBuffer[2];
+//		rc52x_result_t status = RC52X_CalculateCRC(rc52x, &backData[0],
+//				*backLen - 2, &controlBuffer[0]);
+//		if (status != STATUS_OK) {
+//			return status;
+//		}
+//		if ((backData[*backLen - 2] != controlBuffer[0])
+//				|| (backData[*backLen - 1] != controlBuffer[1])) {
+//			return STATUS_CRC_WRONG;
+//		}
 	}
 
 	return STATUS_OK;

@@ -4,7 +4,7 @@ File:         pn5180.h
 Author:       André van Schoubroeck
 License:      MIT
 
-This implements the RC522 family of RFID reader ICs
+This implements the PN5180 family of RFID reader ICs
 
 * PN5180
 * Other compatibles 

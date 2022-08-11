@@ -10,6 +10,8 @@
 #include "pn53x_transport.h"
 #include "picc.h"
 
+#include <string.h>
+
 int pn53x_recv_ack(pn53x_t *pn53x, bool* acknack) {
 	pn53x_i2c_spi_ack_nack_frame_t ack_nack = {0};
 	*acknack = false;

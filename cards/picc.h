@@ -42,6 +42,7 @@ typedef enum {
 			};
 		};
 		uint8_t card_type;//TODO
+		union {
 		struct {
 			uint8_t fixed_header;
 			uint8_t vendor_id;
@@ -53,6 +54,8 @@ typedef enum {
 			uint8_t protocol_type;
 			uint16_t crc;
 		} get_version_response;
+			uint8_t rats[16];
+		};
 		struct {
 			uint8_t page_count;
 			uint8_t page_size;
