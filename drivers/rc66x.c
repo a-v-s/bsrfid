@@ -125,9 +125,9 @@ rc52x_result_t RC66X_TransceiveData(rc66x_t *rc66x,uint8_t *sendData,
 rc52x_result_t RC66X_CommunicateWithPICC(rc66x_t *rc66x, uint8_t command,	///< The command to execute. One of the RC52X_Command enums.
 		uint8_t waitIRq,///< The bits in the ComIrqReg register that signals successful completion of the command.
 		uint8_t *sendData,	///< Pointer to the data to transfer to the FIFO.
-		uint8_t sendLen,		///< Number of uint8_ts to transfer to the FIFO.
+		uint8_t sendLen,		///< Number of bytes to transfer to the FIFO.
 		uint8_t *backData,///< nullptr or pointer to buffer if data should be read back after executing the command.
-		uint8_t *backLen,///< In: Max number of uint8_ts to write to *backData. Out: The number of uint8_ts returned.
+		uint8_t *backLen,///< In: Max number of bytes to write to *backData. Out: The number of bytes returned.
 		uint8_t *validBits,	///< In/Out: The number of valid bits in the last uint8_t. 0 for 8 valid bits.
 		uint8_t rxAlign,///< In: Defines the bit position in backData[0] for the first bit received. Default 0.
 		bool sendCRC ,
@@ -168,6 +168,8 @@ rc52x_result_t RC66X_CommunicateWithPICC(rc66x_t *rc66x, uint8_t command,	///< T
 		if (irq1 & 0x01) {			// Timer interrupt - nothing received in 25ms
 			return STATUS_TIMEOUT;
 		}
+
+		// Do we have a bit to indicate a CRC error?
 	}
 	// 35.7ms and nothing happend. Communication with the MFRC522 might be down.
 	if ( (HAL_GetTick() - begin) >= 36) {
@@ -186,7 +188,7 @@ rc52x_result_t RC66X_CommunicateWithPICC(rc66x_t *rc66x, uint8_t command,	///< T
 	// If the caller wants data back, get it from the MFRC522.
 	if (backData && backLen) {
 		uint8_t fifo_data_len;
-		rc66x_get_reg8(rc66x, RC66X_REG_FIFOLength,&fifo_data_len);// Number of uint8_ts in the FIFO
+		rc66x_get_reg8(rc66x, RC66X_REG_FIFOLength,&fifo_data_len);// Number of bytes in the FIFO
 
 		if (fifo_data_len > *backLen) {
 			return STATUS_NO_ROOM;
@@ -206,7 +208,7 @@ rc52x_result_t RC66X_CommunicateWithPICC(rc66x_t *rc66x, uint8_t command,	///< T
 		return STATUS_COLLISION;
 	}
 
-	// Perform CRC_A validation if requested.
+	// Does this still make sense?
 	if (backData && backLen && recvCRC) {
 		// In this case a MIFARE Classic NAK is not OK.
 		if (*backLen == 1 && _validBits == 4) {
@@ -216,21 +218,6 @@ rc52x_result_t RC66X_CommunicateWithPICC(rc66x_t *rc66x, uint8_t command,	///< T
 		if (*backLen < 2 || _validBits != 0) {
 			return STATUS_CRC_WRONG;
 		}
-		/*
-
-		// Verify CRC_A - do our own calculation and store the control in controlBuffer.
-		uint8_t controlBuffer[2];
-		rc52x_result_t status = RC52X_CalculateCRC(rc52x, &backData[0],
-				*backLen - 2, &controlBuffer[0]);
-		if (status != STATUS_OK) {
-			return status;
-		}
-		if ((backData[*backLen - 2] != controlBuffer[0])
-				|| (backData[*backLen - 1] != controlBuffer[1])) {
-			return STATUS_CRC_WRONG;
-		}
-
-		*/
 	}
 
 	return STATUS_OK;
