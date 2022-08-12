@@ -45,6 +45,7 @@ int pn5180_get_reg32(pn5180_t *pn5180, uint8_t reg, uint32_t *value) {
 			false);
 	if (result)
 		return result;
+	bshal_delay_ms(1);
 	result = bshal_spim_receive(pn5180->transport_instance.spim, value,
 			sizeof(uint32_t), false);
 	return result;
@@ -121,16 +122,27 @@ void PN5180_Init(pn5180_t *pn5180) {
 	bshal_delay_ms(1);
 	pn5180_test(pn5180);
 
-//	//	2: sendSPI(0x16, 0x00);
-//	//  2: Switches the RF field ON.
-//	req.command = PN5180_CMD_RF_ON;
-//	req.raw[0] = 0x00;
-//	result = bshal_spim_transmit(pn5180->transport_instance.spim, &req, 2,
-//			false);
-//	if (result)
-//		return result;
-//	bshal_delay_ms(1);
-//	pn5180_test(pn5180);
+
+	pn5180_or_reg32(pn5180, 0x04, 0x01);
+	bshal_delay_ms(1);
+
+
+	//	2: sendSPI(0x16, 0x00);
+	//  2: Switches the RF field ON.
+	//  So after turning the RF field on, it stops responding
+	//  Could we have a brownout problem?
+	req.command = PN5180_CMD_RF_ON;
+	req.raw[0] = 0x00;
+	result = bshal_spim_transmit(pn5180->transport_instance.spim, &req, 2,
+			false);
+	if (result)
+		return result;
+	bshal_delay_ms(10);
+	pn5180_test(pn5180);
+
+
+
+
 
 
 	//	3: sendSPI(0x02, 0x19, 0xFE, 0xFF, 0xFF, 0xFF);
@@ -148,6 +160,13 @@ void PN5180_Init(pn5180_t *pn5180) {
 	pn5180_and_reg32(pn5180, 0x12, 0xFFFFFFFE);
 	bshal_delay_ms(1);
 	pn5180_test(pn5180);
+
+
+
+	uint32_t irq_status = 0;
+	result = pn5180_get_reg32(pn5180, 0x02, &irq_status);
+
+
 
 	//	5: sendSPI(0x00, 0x03, 0xFF, 0xFF, 0x0F, 0x00);
 	//  5: Clears the interrupt register IRQ_STATUS
@@ -188,7 +207,7 @@ void PN5180_Init(pn5180_t *pn5180) {
 
 	//	9: waitForCardResponse();
 	//  9: Waits until a Card has responded via checking the IRQ_STATUS register
-	uint32_t irq_status = 0;
+	irq_status = 0;
 	while (!irq_status) {
 		result = pn5180_get_reg32(pn5180, 0x02, &irq_status);
 		if (result)
