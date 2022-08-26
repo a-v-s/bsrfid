@@ -91,7 +91,7 @@ rc52x_result_t THM3060_CommunicateWithPICC(thm3060_t *thm3060, uint8_t command,	
 
 	thm3060_set_reg8(thm3060, THM3060_REG_RSCL, sendLen);
 	thm3060_set_reg8(thm3060, THM3060_REG_RSCH, 0);
-	thm3060_set_reg8(thm3060, THM3060_REG_BPOS, txLastBits);
+	//thm3060_set_reg8(thm3060, THM3060_REG_BPOS, txLastBits);
 
 	//--------
 
@@ -109,6 +109,7 @@ rc52x_result_t THM3060_CommunicateWithPICC(thm3060_t *thm3060, uint8_t command,	
 
 	thm3060_or_reg8(thm3060,THM3060_REG_SCON, 0x02); // start
 
+	bshal_delay_ms(5);
 
 	// Wait for the command to complete.
 	// In RC52X_Init() we set the TAuto flag in TModeReg. This means the timer automatically starts when the PCD stops transmitting.
