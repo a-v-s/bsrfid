@@ -171,6 +171,8 @@ rc52x_result_t THM3060_CommunicateWithPICC(thm3060_t *thm3060, uint8_t command,	
 		return STATUS_TIMEOUT;
 	}
 
+	thm3060_and_reg8(thm3060,THM3060_REG_SCON, ~0x02); // stop
+
 	uint8_t _validBits = 0;
 
 	// If the caller wants data back, get it from the MFRC522.
