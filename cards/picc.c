@@ -460,22 +460,23 @@ int MFU_Write(bs_pdc_t *pdc, picc_t *picc, int page, uint8_t* data){
 
 	uint8_t backBuffer[1];
 	size_t backsize = 1;
-	uint8_t validBits;
+	uint8_t validBits=0;
 
 	result = pdc->TransceiveData(pdc, buffer, 6, backBuffer, &backsize,
 				&validBits, 0, NULL, true, false);
 
-	// On RC522:
-	// Expecting valid bits = 4, value 0xA
-	// Getting   valid bits = 6, value 0x28
-
-	// on RC663:
-	// Getting expected results
-
-	if ( 1 == backsize && validBits > 4) {
-		*backBuffer >>= (validBits - 4);
-		validBits = 4;
-	}
+// Fixed: validBits was uninitialised
+//	// On RC522:
+//	// Expecting valid bits = 4, value 0xA
+//	// Getting   valid bits = 6, value 0x28
+//
+//	// on RC663:
+//	// Getting expected results
+//
+//	if ( 1 == backsize && validBits > 4) {
+//		*backBuffer >>= (validBits - 4);
+//		validBits = 4;
+//	}
 
 	if (STATUS_OK == result && 1 == backsize && 4 == validBits) {
 		// We've received a status in stead of data
