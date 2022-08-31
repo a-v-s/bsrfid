@@ -237,8 +237,8 @@ void THM3060_Init(thm3060_t *thm3060) {
 	thm3060_set_reg8(thm3060,THM3060_REG_CRCSEL, 0b00000001); // No CRC, timeout enabled
 
 	// 12.6.3	Set the TMR register
-	//thm3060_set_reg8(thm3060,THM3060_REG_TMRH, 0x00);
-	thm3060_set_reg8(thm3060,THM3060_REG_TMRH, 0xFF);
+	thm3060_set_reg8(thm3060,THM3060_REG_TMRH, 0x00);
+	//thm3060_set_reg8(thm3060,THM3060_REG_TMRH, 0xFF);
 	thm3060_set_reg8(thm3060,THM3060_REG_TMRL, 0xFF);
 
 	// 12.6.4	Open the RF carrier (SCON)
