@@ -411,11 +411,11 @@ int MIFARE_READ(bs_pdc_t *pdc, picc_t *picc, int page, uint8_t* data){
 	buffer[0] = 0x30;
 	buffer[1] = page;
 
-	size_t backsize = 18;
+	size_t backsize = 16;
 	uint8_t validBits;
 
 	result = pdc->TransceiveData(pdc, buffer, 2, data, &backsize,
-				&validBits, 0, NULL, true, false);
+				&validBits, 0, NULL, true, true);
 
 	if (STATUS_OK == result && 1 == backsize && 4 == validBits) {
 		// We've received a status in stead of data

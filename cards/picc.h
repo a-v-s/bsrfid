@@ -77,6 +77,13 @@ typedef struct {
 		uint8_t page_offset;
 		// NB... for MFC more is needed as we need to skip pages
 	} memory_stucture;
+	union{
+		struct {
+			uint8_t key_a_or_b;
+			uint8_t block_address;
+			uint8_t key[6];
+		} mfc_crypto1;
+	}
 } picc_t;
 
 rc52x_result_t PICC_REQA_or_WUPA(bs_pdc_t *pdc, uint8_t command, ///< The command to send - PICC_CMD_REQA or PICC_CMD_WUPA

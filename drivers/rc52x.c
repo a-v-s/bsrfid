@@ -23,6 +23,7 @@
 
 //#include "MFRC522.h"
 #include "rc52x.h"
+#include "picc.h"
 
 int rc52x_get_chip_version(rc52x_t *rc52x, uint8_t *chip_id) {
 	return mfrc522_recv(rc52x, RC52X_REG_VersionReg, chip_id, 1);
@@ -260,17 +261,17 @@ rc52x_result_t rc52x_transceive(rc52x_t *rc52x, uint8_t *sendData, ///< Pointer 
 		return STATUS_COLLISION;
 	}
 
-	// Perform CRC_A validation if requested.
-	if (backData && backLen && recvCRC) {
-		// In this case a MIFARE Classic NAK is not OK.
-		if (*backLen == 1 && _validBits == 4) {
-			return STATUS_MIFARE_NACK;
-		}
-		// We need at least the CRC_A value and all 8 bits of the last uint8_t must be received.
-		if (*backLen < 2 || _validBits != 0) {
-			return STATUS_CRC_WRONG;
-		}
-	}
+//	// Perform CRC_A validation if requested.
+//	if (backData && backLen && recvCRC) {
+//		// In this case a MIFARE Classic NAK is not OK.
+//		if (*backLen == 1 && _validBits == 4) {
+//			return STATUS_MIFARE_NACK;
+//		}
+//		// We need at least the CRC_A value and all 8 bits of the last uint8_t must be received.
+//		if (*backLen < 2 || _validBits != 0) {
+//			return STATUS_CRC_WRONG;
+//		}
+//	}
 
 	return STATUS_OK;
 } // End RC52X_CommunicateWithPICC()
@@ -278,4 +279,64 @@ rc52x_result_t rc52x_transceive(rc52x_t *rc52x, uint8_t *sendData, ///< Pointer 
 rc52x_result_t rc52x_set_bit_framing(bs_pdc_t *pdc, int rxAlign, int txLastBits) {
 	return rc52x_set_reg8(pdc, RC52X_REG_BitFramingReg,
 			(rxAlign << 4) | txLastBits); // RxAlign = BitFramingReg[6..4]. TxLastBits = BitFramingReg[2..0]
+}
+
+rc52x_result_t rc52x_crypto1_end(bs_pdc_t *pdc) {
+	return rc52x_and_reg8(pdc, RC52X_REG_Status2Reg, ~0x08);
+}
+
+rc52x_result_t rc52x_crypto1_begin(bs_pdc_t *rc52x, picc_t *picc) {
+	if (!picc)
+		return -1;
+	rc52x_result_t result;
+	switch (picc->mfc_crypto1.key_a_or_b) {
+	case 0x60:
+		// Use Key A
+		break;
+	case 0x61:
+		// Use Key B
+		break;
+	default:
+		return -1;
+	}
+
+	rc52x_set_reg8(rc52x, RC52X_REG_ComIrqReg, 0x7F); // Clear all seven interrupt request bits
+	rc52x_set_reg8(rc52x, RC52X_REG_CommandReg, RC52X_CMD_Idle); // Stop any active command.
+	rc52x_set_reg8(rc52x, RC52X_REG_FIFOLevelReg, 0x80); // FlushBuffer = 1,
+
+	uint8_t buffer[12];
+	memcpy(buffer, &picc->mfc_crypto1, 8);
+	memcpy(buffer + 8, picc->uidByte + picc->size - 4, 4);
+
+	mfrc522_send(rc52x, RC52X_REG_FIFODataReg, buffer, 12);
+
+	rc52x_set_reg8(rc52x, RC52X_REG_CommandReg, RC52X_CMD_MFAuthent);
+
+	uint32_t timeout = rc52x->get_time_ms() + RC52X_TIMEOUT_ms;
+	uint8_t regval;
+
+	while ((rc52x->get_time_ms()) < timeout) {
+		result = rc52x_get_reg8(rc52x, RC52X_REG_ComIrqReg, &regval);
+		if (result)
+			return STATUS_ERROR;
+		if (regval & 0x10) {
+
+			result = rc52x_get_reg8(rc52x, RC52X_REG_Status2Reg, &regval);
+
+			if (regval & 0x08) {
+				return STATUS_OK;
+			}
+			break;
+
+		}
+		if (regval & 0x01) {	// Timer interrupt - nothing received in 25ms
+			rc52x_set_reg8(rc52x, RC52X_REG_CommandReg, RC52X_CMD_Idle); // Stop any active command.
+			return STATUS_TIMEOUT;
+		}
+	}
+
+	rc52x_set_reg8(rc52x, RC52X_REG_CommandReg, RC52X_CMD_Idle); // Stop any active command.
+
+	return STATUS_ERROR;
+
 }

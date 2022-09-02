@@ -124,7 +124,8 @@ rc52x_result_t rc66x_transceive(rc66x_t *rc66x, uint8_t *sendData,
 	// Stop now if any errors except collisions were detected.
 	uint8_t errorRegValue;
 	rc66x_get_reg8(rc66x, RC66X_REG_Error, &errorRegValue);
-	if (errorRegValue & 0b01100011) {	 // BufferOvfl ParityErr ProtocolErr
+	//if (errorRegValue & 0b01100011) {	 // BufferOvfl ParityErr ProtocolErr
+	if (errorRegValue & 0b01100010) {	 // BufferOvfl ParityErr ProtocolErr
 		return STATUS_ERROR;
 	}
 
@@ -133,7 +134,15 @@ rc52x_result_t rc66x_transceive(rc66x_t *rc66x, uint8_t *sendData,
 	// If the caller wants data back, get it from the MFRC522.
 	if (backData && backLen) {
 		uint8_t fifo_data_len;
+		rc66x_get_reg8(rc66x, RC66X_REG_RxBitCtrl, &_validBits);
+		_validBits &= 0x07;	// RxLastBits[2:0] indicates the number of valid bits in the last received uint8_t. If this value is 000b, the whole uint8_t is valid.
+		if (validBits) {
+			*validBits = _validBits;
+		}
+
 		rc66x_get_reg8(rc66x, RC66X_REG_FIFOLength, &fifo_data_len);// Number of bytes in the FIFO
+		if (_validBits)
+			fifo_data_len++;
 
 		if (fifo_data_len > *backLen) {
 			return STATUS_NO_ROOM;
@@ -141,11 +150,6 @@ rc52x_result_t rc66x_transceive(rc66x_t *rc66x, uint8_t *sendData,
 		*backLen = fifo_data_len;					// Number of bytes returned
 		rc66x_recv(rc66x, RC66X_REG_FIFOData, backData, fifo_data_len);
 
-		rc66x_get_reg8(rc66x, RC66X_REG_RxBitCtrl, &_validBits);
-		_validBits &= 0x07;	// RxLastBits[2:0] indicates the number of valid bits in the last received uint8_t. If this value is 000b, the whole uint8_t is valid.
-		if (validBits) {
-			*validBits = _validBits;
-		}
 	}
 
 	// Tell about collisions
@@ -153,17 +157,72 @@ rc52x_result_t rc66x_transceive(rc66x_t *rc66x, uint8_t *sendData,
 		return STATUS_COLLISION;
 	}
 
-	// Does this still make sense?
-	if (backData && backLen && recvCRC) {
-		// In this case a MIFARE Classic NAK is not OK.
-		if (*backLen == 1 && _validBits == 4) {
-			return STATUS_MIFARE_NACK;
-		}
-		// We need at least the CRC_A value and all 8 bits of the last uint8_t must be received.
-		if (*backLen < 2 || _validBits != 0) {
-			return STATUS_CRC_WRONG;
-		}
-	}
+//	// Does this still make sense?
+//	if (backData && backLen && recvCRC) {
+//		// In this case a MIFARE Classic NAK is not OK.
+//		if (*backLen == 1 && _validBits == 4) {
+//			return STATUS_MIFARE_NACK;
+//		}
+//		// We need at least the CRC_A value and all 8 bits of the last uint8_t must be received.
+//		if (*backLen < 2 || _validBits != 0) {
+//			return STATUS_CRC_WRONG;
+//		}
+//	}
 
 	return STATUS_OK;
 } // End RC52X_CommunicateWithPICC()
+
+rc66x_result_t rc66x_crypto1_end(bs_pdc_t *pdc) {
+	return rc66x_set_reg8(pdc, RC66X_REG_Status, ~(1 << 5));
+}
+
+rc66x_result_t rc66x_crypto1_begin(bs_pdc_t *rc66x, picc_t *picc) {
+	if (!picc)
+		return -1;
+	rc66x_result_t result;
+	switch (picc->mfc_crypto1.key_a_or_b) {
+	case 0x60:
+		// Use Key A
+		break;
+	case 0x61:
+		// Use Key B
+		break;
+	default:
+		return -1;
+	}
+
+	rc66x_set_reg8(rc66x, RC66X_REG_Command, RC66X_CMD_Idle); // Stop any active command.
+
+	rc66x_set_reg8(rc66x, RC66X_REG_IRQ0, 0x7F); // Clear all seven interrupt request bits
+	rc66x_set_reg8(rc66x, RC66X_REG_IRQ1, 0x7F); // Clear all seven interrupt request bits
+	rc66x_set_reg8(rc66x, RC66X_REG_FIFOControl, 0xB0);	// FlushBuffer = 1, FIFO initialization
+
+	uint8_t buffer[6];
+
+	rc66x_set_reg8(rc66x, RC66X_REG_FIFOControl, 0xB0);	// FlushBuffer = 1, FIFO initialization
+	memcpy(buffer, ((uint8_t*) &picc->mfc_crypto1) + 2, 6);
+	rc66x_send(rc66x, RC66X_REG_FIFOData, buffer, 6);
+	rc66x_set_reg8(rc66x, RC66X_REG_Command, RC66X_CMD_LoadKey);
+
+	rc66x_set_reg8(rc66x, RC66X_REG_FIFOControl, 0xB0);	// FlushBuffer = 1, FIFO initialization
+	memcpy(buffer, &picc->mfc_crypto1, 2);
+	memcpy(buffer + 2, picc->uidByte + picc->size - 4, 4);
+	rc66x_send(rc66x, RC66X_REG_FIFOData, buffer, 6);
+	rc66x_set_reg8(rc66x, RC66X_REG_Command, RC66X_CMD_MFAuthent);// Execute the command
+
+	uint8_t status, error;
+	uint32_t timeout = rc66x->get_time_ms() + RC66X_TIMEOUT_ms;
+
+	while ((rc66x->get_time_ms()) < timeout) {
+		rc66x_get_reg8(rc66x, RC66X_REG_Error, &error);
+		rc66x_get_reg8(rc66x, RC66X_REG_Status, &status);
+		if (status && (1 << 5)) {
+			return STATUS_OK;
+		}
+	}
+
+	rc66x_set_reg8(rc66x, RC66X_REG_Command, RC66X_CMD_Idle);// Stop any active command.
+
+	return STATUS_ERROR;
+
+}
