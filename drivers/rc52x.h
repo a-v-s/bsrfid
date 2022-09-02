@@ -178,7 +178,7 @@ typedef bs_pdc_t rc52x_t ;
 #define RC52X_CMD_SoftReset          (0b1111)
 
 
-
+#define RC52X_TIMEOUT_ms			(40)
 
 
 uint8_t rc52x_communicate_with_picc(rc52x_t *rc52x,
@@ -279,7 +279,7 @@ void RC52X_SoftPowerUp(rc52x_t *rc52x);
 /////////////////////////////////////////////////////////////////////////////////////
 // Functions for communicating with PICCs
 /////////////////////////////////////////////////////////////////////////////////////
-rc52x_result_t RC52X_TransceiveData(rc52x_t *rc52x, uint8_t *sendData,
+rc52x_result_t rc52x_transceive(rc52x_t *rc52x, uint8_t *sendData,
 		size_t sendLen, uint8_t *backData, size_t *backLen, uint8_t *validBits,
 		uint8_t rxAlign, uint8_t *collisionPos, bool sendCRC, bool recvCRC);
 rc52x_result_t RC52X_CommunicateWithPICC(rc52x_t *rc52x, uint8_t command,

@@ -67,6 +67,7 @@ the same, so I am not sure if we can tell them apart.
 
 #include "rc52x.h"
 typedef  rc52x_t rc66x_t;
+typedef rc52x_result_t rc66x_result_t;
 
 
 #define RC66X_REG_Command         	(0x00) //  Starts and stops command execution
@@ -182,31 +183,22 @@ typedef  rc52x_t rc66x_t;
 #define RC66X_CMD_ReadE2			(0x0A)
 #define RC66X_CMD_LoadReg			(0x0C)
 #define RC66X_CMD_LoadProtocol		(0x0D)
+
+#define RC66X_TIMEOUT_ms			(40)
+
 //------------
 int rc66x_get_chip_version(rc66x_t *rc66x, uint8_t *chip_id);
 
-void RC66X_AntennaOn(rc66x_t *rc66x);
-void RC66X_AntennaOff(rc66x_t *rc66x);
+void rc66x_antenna_on(rc66x_t *rc66x);
+void rc66x_antenna_off(rc66x_t *rc66x);
 
-rc52x_result_t RC66X_TransceiveData(rc66x_t *rc66x,uint8_t *sendData, ///< Pointer to the data to transfer to the FIFO.
-		uint8_t sendLen,		///< Number of uint8_ts to transfer to the FIFO.
-		uint8_t *backData,///< nullptr or pointer to buffer if data should be read back after executing the command.
-		uint8_t *backLen,///< In: Max number of uint8_ts to write to *backData. Out: The number of uint8_ts returned.
-		uint8_t *validBits,	///< In/Out: The number of valid bits in the last uint8_t. 0 for 8 valid bits. Default nullptr.
-		uint8_t rxAlign,///< In: Defines the bit position in backData[0] for the first bit received. Default 0.
+rc66x_result_t rc66x_transceive(rc66x_t *rc66x,uint8_t *sendData,
+		uint8_t sendLen,
+		uint8_t *backData,
+		uint8_t *backLen,
+		uint8_t *validBits,
+		uint8_t rxAlign,
 		uint8_t * collpos,
 		bool sendCRC ,
 		bool recvCRC
-		) ;
-
-rc52x_result_t RC66X_CommunicateWithPICC(rc66x_t *rc66x, uint8_t command,	///< The command to execute. One of the RC52X_Command enums.
-		uint8_t waitIRq,///< The bits in the ComIrqReg register that signals successful completion of the command.
-		uint8_t *sendData,	///< Pointer to the data to transfer to the FIFO.
-		uint8_t sendLen,		///< Number of uint8_ts to transfer to the FIFO.
-		uint8_t *backData,///< nullptr or pointer to buffer if data should be read back after executing the command.
-		uint8_t *backLen,///< In: Max number of uint8_ts to write to *backData. Out: The number of uint8_ts returned.
-		uint8_t *validBits,	///< In/Out: The number of valid bits in the last uint8_t. 0 for 8 valid bits.
-		uint8_t rxAlign,///< In: Defines the bit position in backData[0] for the first bit received. Default 0.
-		bool sendCRC ,
-		bool recvCRC
-		) ;
+		);
