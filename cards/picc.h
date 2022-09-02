@@ -14,35 +14,50 @@
 
 #include "pdc.h"
 
-
 typedef enum {
-	picc_protocol_undefined,
+	picc_protocol_undefined,    //
 	picc_protocol_iso14443a,    // eg. MiFare, NTAG
 	picc_protocol_iso14443b,	// eg. SRI512
 	picc_protocol_iso15693,     // eg. ICode
 	picc_protocol_jisx_6319_4,  // eg. FeliCa
 } picc_protocol_t;
 
+typedef enum {
+	picc_type_unknown = 0x00,
+	picc_type_mfc = 0x01,	// Mifare Classic
+	picc_type_mfu = 0x02,	// Mifare UltraLight
+	picc_type_ntag = 0x02,	// NTAG
+} picc_type_t;
 
+typedef enum {
+	nfc_type_none = 0x00,//
+	nfc_type_1 = 0x01, // Jewel
+	nfc_type_2 = 0x02, // Mifare UltraLight, NTAG21x
+	nfc_type_3 = 0x03, // Felica
+	nfc_type_4 = 0x04, // ISO 14443-4
+	nfc_type_5 = 0x05, // ISO 15693
+	nfc_type_mfc = 0xFC,	// Unoffical Mifare Classic
+} nfc_type_t;
 
-	typedef struct {
-		// Number of bytes in the UID.
-		// For ISO 14443-A 		4, 7 or 10.
-		// For ISO 14443-B		4
-		// For ISO 15693		8
-		// For JIS X 6319-4 	8
+typedef struct {
+	// Number of bytes in the UID.
+	// For ISO 14443-A 		4, 7 or 10.
+	// For ISO 14443-B		4
+	// For ISO 15693		8
+	// For JIS X 6319-4 	8
 
-		picc_protocol_t protocol;
-		uint8_t		size;
-		uint8_t		uidByte[10];
-		union {
-			struct {
-				iso14443a_sak_t		sak;	// The SAK (Select acknowledge) byte returned from the PICC after successful selection.
-				iso14443a_atqa_t   atqa;
-			};
+	picc_protocol_t protocol;
+	uint8_t size;
+	uint8_t uidByte[10];
+	union {
+		struct {
+			iso14443a_sak_t sak;// The SAK (Select acknowledge) byte returned from the PICC after successful selection.
+			iso14443a_atqa_t atqa;
 		};
-		uint8_t card_type;//TODO
-		union {
+	};
+	picc_type_t card_type;	//TODO
+	nfc_type_t nfc_type;
+	union {
 		struct {
 			uint8_t fixed_header;
 			uint8_t vendor_id;
@@ -54,19 +69,18 @@ typedef enum {
 			uint8_t protocol_type;
 			uint16_t crc;
 		} get_version_response;
-			uint8_t rats[16];
-		};
-		struct {
-			uint8_t page_count;
-			uint8_t page_size;
-			uint8_t page_offset;
-			// NB... for MFC more is needed as we need to skip pages
-		} memory_stucture;
-	} picc_t;
+		uint8_t rats[16];
+	};
+	struct {
+		uint8_t page_count;
+		uint8_t page_size;
+		uint8_t page_offset;
+		// NB... for MFC more is needed as we need to skip pages
+	} memory_stucture;
+} picc_t;
 
-
-	rc52x_result_t PICC_REQA_or_WUPA(bs_pdc_t *pdc, uint8_t command, ///< The command to send - PICC_CMD_REQA or PICC_CMD_WUPA
-			uint8_t *bufferATQA, ///< The buffer to store the ATQA (Answer to request) in
-			size_t *bufferSize	///< Buffer size, at least two bytes. Also number of bytes returned if STATUS_OK.
-			) ;
+rc52x_result_t PICC_REQA_or_WUPA(bs_pdc_t *pdc, uint8_t command, ///< The command to send - PICC_CMD_REQA or PICC_CMD_WUPA
+		uint8_t *bufferATQA, ///< The buffer to store the ATQA (Answer to request) in
+		size_t *bufferSize///< Buffer size, at least two bytes. Also number of bytes returned if STATUS_OK.
+		);
 #endif /* BSRFID_CARDS_PICC_H_ */

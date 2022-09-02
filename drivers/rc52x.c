@@ -525,9 +525,10 @@ rc52x_result_t RC52X_CommunicateWithPICC(rc52x_t *rc52x, uint8_t command,	///< T
 		if (n & 0x01) {			// Timer interrupt - nothing received in 25ms
 			return STATUS_TIMEOUT;
 		}
-		if (n & 0x02) {			// Timer interrupt - nothing received in 25ms
-			return STATUS_ERROR;
-		}
+		// An error bit has been set, but we are checking it anyway so leave it for then
+//		if (n & 0x02) {
+//			return STATUS_ERROR;
+//		}
 
 	}
 	// 35.7ms and nothing happend. Communication with the MFRC522 might be down.
