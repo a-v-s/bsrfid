@@ -29,7 +29,6 @@ int ndef_record_parse(void *data, size_t size) {
 
 			{
 
-//			 VLAs are broken???
 				uint8_t type[type_length];
 				//uint8_t type[64];
 				memcpy(type, data + offset, type_length);

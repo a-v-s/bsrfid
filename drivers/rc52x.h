@@ -264,7 +264,7 @@ rc52x_result_t RC52X_CalculateCRC(rc52x_t *rc52x, uint8_t *data, uint8_t length,
 /////////////////////////////////////////////////////////////////////////////////////
 void RC52X_Init(rc52x_t *rc52x);
 void RC52X_Reset(rc52x_t *rc52x);
-void RC52X_AntennaOn(rc52x_t *rc52x);
+void rc52x_antenna_on(rc52x_t *rc52x);
 void RC52X_AntennaOff(rc52x_t *rc52x);
 uint8_t RC52X_GetAntennaGain(rc52x_t *rc52x);
 void RC52X_SetAntennaGain(rc52x_t *rc52x, uint8_t mask);

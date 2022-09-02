@@ -154,71 +154,13 @@ const uint8_t FM17522_firmware_reference[] = { 0x00, 0xD6, 0x78, 0x8C, 0xE2,
 
 //--------------
 
-
-// Temporary helper
-// I don't like this style of function as it offers no
-// possibility for error handling. Adding it to speed up portong
-uint8_t RC52X_ReadRegister(rc52x_t *rc52x, uint8_t reg) {
-	uint8_t regval;
-	int result = rc52x_get_reg8(rc52x, reg, &regval);
-	(void) result;  // We do not handle the error!
-	return regval;
-}
-
-int RC52X_ClearRegisterBitMask(rc52x_t *rc52x, uint8_t reg, uint8_t value) {
-	return rc52x_and_reg8(rc52x, reg, ~value);
-}
-
-/**
- * Use the CRC coprocessor in the MFRC522 to calculate a CRC_A.
- *
- * @return STATUS_OK on success, STATUS_??? otherwise.
- */
-rc52x_result_t RC52X_CalculateCRC(rc52x_t *rc52x, uint8_t *data, ///< In: Pointer to the data to transfer to the FIFO for CRC calculation.
-		uint8_t length,	///< In: The number of uint8_ts to transfer.
-		uint8_t *result	///< Out: Pointer to result buffer. Result is written to result[0..1], low uint8_t first.
-		) {
-	rc52x_set_reg8(rc52x, RC52X_REG_CommandReg, RC52X_CMD_Idle);// Stop any active command.
-	rc52x_set_reg8(rc52x, RC52X_REG_DivIrqReg, 0x04);// Clear the CRCIRq interrupt request bit
-	rc52x_set_reg8(rc52x, RC52X_REG_FIFOLevelReg, 0x80);	// FlushBuffer = 1, FIFO initialization
-	mfrc522_send(rc52x, RC52X_REG_FIFODataReg, data, length);// Write data to the FIFO
-	rc52x_set_reg8(rc52x, RC52X_REG_CommandReg, RC52X_CMD_CalcCRC);// Start the calculation
-
-	// Wait for the CRC calculation to complete. Each iteration of the while-loop takes 17.73μs.
-	// TODO check/modify for other architectures than Arduino Uno 16bit
-
-	// Wait for the CRC calculation to complete. Each iteration of the while-loop takes 17.73us.
-	for (uint16_t i = 5000; i > 0; i--) {
-		// DivIrqReg[7..0] bits are: Set2 reserved reserved MfinActIRq reserved CRCIRq reserved reserved
-		uint8_t n = RC52X_ReadRegister(rc52x, RC52X_REG_DivIrqReg);
-		if (n & 0x04) {						// CRCIRq bit set - calculation done
-			rc52x_set_reg8(rc52x, RC52X_REG_CommandReg, RC52X_CMD_Idle);// Stop calculating CRC for new content in the FIFO.
-			// Transfer the result from the registers to the result buffer
-			result[0] = RC52X_ReadRegister(rc52x, RC52X_REG_CRCResultReg_Lo);
-			result[1] = RC52X_ReadRegister(rc52x, RC52X_REG_CRCResultReg_Hi);
-			return STATUS_OK;
-		}
-	}
-	// 89ms passed and nothing happend. Communication with the MFRC522 might be down.
-	return STATUS_TIMEOUT;
-} // End RC52X_CalculateCRC()
-
-/////////////////////////////////////////////////////////////////////////////////////
-// Functions for manipulating the MFRC522
-/////////////////////////////////////////////////////////////////////////////////////
-
-
-
-
-
-
 /**
  * Initializes the MFRC522 chip.
  */
 void RC52X_Init(rc52x_t *rc52x) {
 	rc52x->TransceiveData = RC52X_TransceiveData;
 	//rc52x->SetBitFraming = rc52x_set_bit_framing;
-	RC52X_Reset(rc52x);
+	rc52x_reset(rc52x);
 
 	// Reset baud rates
 	rc52x_set_reg8(rc52x, RC52X_REG_TxModeReg, 0x00);
@@ -244,23 +186,25 @@ void RC52X_Init(rc52x_t *rc52x) {
 	// testing
 	// RC52X_SetAntennaGain(rc52x,RxGain_48dB);
 
-	RC52X_AntennaOn(rc52x);// Enable the antenna driver pins TX1 and TX2 (they were disabled by the reset)
+	rc52x_antenna_on(rc52x);// Enable the antenna driver pins TX1 and TX2 (they were disabled by the reset)
 } // End RC52X_Init()
 
 /**
  * Performs a soft reset on the MFRC522 chip and waits for it to be ready again.
  */
-void RC52X_Reset(rc52x_t *rc52x) {
+void rc52x_reset(rc52x_t *rc52x) {
 	rc52x_set_reg8(rc52x, RC52X_REG_CommandReg, RC52X_CMD_SoftReset); // Issue the SoftReset command.
 	// The datasheet does not mention how long the SoftRest command takes to complete.
 	// But the MFRC522 might have been in soft power-down mode (triggered by bit 4 of CommandReg)
 	// Section 8.8.2 in the datasheet says the oscillator start-up time is the start up time of the crystal + 37,74μs. Let us be generous: 50ms.
 	uint8_t count = 0;
+	uint8_t commandregval;
 	do {
 		// Wait for the PowerDown bit in CommandReg to be cleared (max 3x50ms)
 		rc52x->delay_ms(50);
-
-	} while ((RC52X_ReadRegister(rc52x, RC52X_REG_CommandReg) & (1 << 4))
+		int result = rc52x_get_reg8(rc52x, RC52X_REG_CommandReg, &commandregval);
+		if (result) return;
+	} while ( (commandregval & (1 << 4))
 			&& (++count) < 3);
 } // End RC52X_Reset()
 
@@ -268,20 +212,14 @@ void RC52X_Reset(rc52x_t *rc52x) {
  * Turns the antenna on by enabling pins TX1 and TX2.
  * After a reset these pins are disabled.
  */
-void RC52X_AntennaOn(rc52x_t *rc52x) {
-//	uint8_t value = RC52X_ReadRegister(rc52x, RC52X_REG_TxControlReg);
-//	if ((value & 0x03) != 0x03) {
-//		rc52x_set_reg8(rc52x, RC52X_REG_TxControlReg, value | 0x03);
-//	}
-
+void rc52x_antenna_on(rc52x_t *rc52x) {
 	rc52x_set_reg8(rc52x, RC52X_REG_TxControlReg, 0x83);
 } // End RC52X_AntennaOn()
 
 /**
  * Turns the antenna off by disabling pins TX1 and TX2.
  */
-void RC52X_AntennaOff(rc52x_t *rc52x) {
-	//RC52X_ClearRegisterBitMask(rc52x, RC52X_REG_TxControlReg, 0x03);
+void rc52x_antenna_off(rc52x_t *rc52x) {
 	rc52x_set_reg8(rc52x, RC52X_REG_TxControlReg, 0x80);
 } // End RC52X_AntennaOff()
 
@@ -317,7 +255,7 @@ void RC52X_SetAntennaGain(rc52x_t *rc52x, uint8_t mask) {
 bool RC52X_PerformSelfTest(rc52x_t *rc52x) {
 	// This follows directly the steps outlined in 16.1.1
 	// 1. Perform a soft reset.
-	RC52X_Reset(rc52x);
+	rc52x_reset(rc52x);
 
 	// 2. Clear the internal buffer by writing 25 uint8_ts of 00h
 	uint8_t ZEROES[25] = { 0x00 };
@@ -429,12 +367,46 @@ void RC52X_SoftPowerUp(rc52x_t *rc52x) {
 // Functions for communicating with PICCs
 /////////////////////////////////////////////////////////////////////////////////////
 
+///**
+// * Executes the Transceive command.
+// * CRC validation can only be done if backData and backLen are specified.
+// *
+// * @return STATUS_OK on success, STATUS_??? otherwise.
+// */
+//rc52x_result_t RC52X_TransceiveData(rc52x_t *rc52x, uint8_t *sendData, ///< Pointer to the data to transfer to the FIFO.
+//		size_t sendLen,		///< Number of uint8_ts to transfer to the FIFO.
+//		uint8_t *backData,///< nullptr or pointer to buffer if data should be read back after executing the command.
+//		size_t *backLen,///< In: Max number of uint8_ts to write to *backData. Out: The number of uint8_ts returned.
+//		uint8_t *validBits,	///< In/Out: The number of valid bits in the last uint8_t. 0 for 8 valid bits. Default nullptr.
+//		uint8_t rxAlign,///< In: Defines the bit position in backData[0] for the first bit received. Default 0.
+//		uint8_t *collisionPos,
+//		bool sendCRC ,
+//		bool recvCRC
+//		) {
+//	uint8_t waitIRq = 0x30;		// RxIRq and IdleIRq
+//	return RC52X_CommunicateWithPICC(rc52x, RC52X_CMD_Transceive, waitIRq,
+//			sendData, sendLen, backData, backLen, validBits, rxAlign, collisionPos, sendCRC, recvCRC);
+//} // End RC52X_TransceiveData()
+
 /**
- * Executes the Transceive command.
+ * Transfers data to the MFRC522 FIFO, executes a command, waits for completion and transfers data back from the FIFO.
  * CRC validation can only be done if backData and backLen are specified.
  *
  * @return STATUS_OK on success, STATUS_??? otherwise.
  */
+//rc52x_result_t RC52X_CommunicateWithPICC(rc52x_t *rc52x, uint8_t command,	///< The command to execute. One of the RC52X_Command enums.
+//		uint8_t waitIRq,///< The bits in the ComIrqReg register that signals successful completion of the command.
+//		uint8_t *sendData,	///< Pointer to the data to transfer to the FIFO.
+//		size_t sendLen,		///< Number of uint8_ts to transfer to the FIFO.
+//		uint8_t *backData,///< nullptr or pointer to buffer if data should be read back after executing the command.
+//		size_t *backLen,///< In: Max number of uint8_ts to write to *backData. Out: The number of uint8_ts returned.
+//		uint8_t *validBits,	///< In/Out: The number of valid bits in the last uint8_t. 0 for 8 valid bits.
+//		uint8_t rxAlign,///< In: Defines the bit position in backData[0] for the first bit received. Default 0.
+//		uint8_t *collisionPos,
+//		bool sendCRC ,
+//		bool recvCRC
+//		) {
+
 rc52x_result_t RC52X_TransceiveData(rc52x_t *rc52x, uint8_t *sendData, ///< Pointer to the data to transfer to the FIFO.
 		size_t sendLen,		///< Number of uint8_ts to transfer to the FIFO.
 		uint8_t *backData,///< nullptr or pointer to buffer if data should be read back after executing the command.
@@ -446,44 +418,11 @@ rc52x_result_t RC52X_TransceiveData(rc52x_t *rc52x, uint8_t *sendData, ///< Poin
 		bool recvCRC
 		) {
 	uint8_t waitIRq = 0x30;		// RxIRq and IdleIRq
-	return RC52X_CommunicateWithPICC(rc52x, RC52X_CMD_Transceive, waitIRq,
-			sendData, sendLen, backData, backLen, validBits, rxAlign, collisionPos, sendCRC, recvCRC);
-} // End RC52X_TransceiveData()
-
-/**
- * Transfers data to the MFRC522 FIFO, executes a command, waits for completion and transfers data back from the FIFO.
- * CRC validation can only be done if backData and backLen are specified.
- *
- * @return STATUS_OK on success, STATUS_??? otherwise.
- */
-rc52x_result_t RC52X_CommunicateWithPICC(rc52x_t *rc52x, uint8_t command,	///< The command to execute. One of the RC52X_Command enums.
-		uint8_t waitIRq,///< The bits in the ComIrqReg register that signals successful completion of the command.
-		uint8_t *sendData,	///< Pointer to the data to transfer to the FIFO.
-		size_t sendLen,		///< Number of uint8_ts to transfer to the FIFO.
-		uint8_t *backData,///< nullptr or pointer to buffer if data should be read back after executing the command.
-		size_t *backLen,///< In: Max number of uint8_ts to write to *backData. Out: The number of uint8_ts returned.
-		uint8_t *validBits,	///< In/Out: The number of valid bits in the last uint8_t. 0 for 8 valid bits.
-		uint8_t rxAlign,///< In: Defines the bit position in backData[0] for the first bit received. Default 0.
-		uint8_t *collisionPos,
-		bool sendCRC ,
-		bool recvCRC
-		) {
 	// Prepare values for BitFramingReg
 	uint8_t txLastBits = validBits ? *validBits : 0;
 	uint8_t bitFraming = (rxAlign << 4) + txLastBits;// RxAlign = BitFramingReg[6..4]. TxLastBits = BitFramingReg[2..0]
 
-
-
-//	if (sendCRC) {
-//		rc52x_result_t result = RC52X_CalculateCRC(rc52x, sendData, sendLen,
-//				&sendData[sendLen]);
-//		if (result != STATUS_OK) {
-//			return result;
-//		}
-//		sendLen += 2;
-//	}
-
-
+	int result;
 	if (sendCRC) {
 		rc52x_or_reg8(rc52x, RC52X_REG_TxModeReg, 0x80);
 	} else {
@@ -496,54 +435,45 @@ rc52x_result_t RC52X_CommunicateWithPICC(rc52x_t *rc52x, uint8_t command,	///< T
 		rc52x_and_reg8(rc52x, RC52X_REG_RxModeReg, ~0x80);
 	}
 
-	RC52X_ClearRegisterBitMask(rc52x, RC52X_REG_CollReg, 0x80);
-
+	rc52x_and_reg8(rc52x, RC52X_REG_CollReg, ~0x80);
 
 	rc52x_set_reg8(rc52x, RC52X_REG_CommandReg, RC52X_CMD_Idle);// Stop any active command.
 	rc52x_set_reg8(rc52x, RC52X_REG_ComIrqReg, 0x7F);// Clear all seven interrupt request bits
 	rc52x_set_reg8(rc52x, RC52X_REG_FIFOLevelReg, 0x80);	// FlushBuffer = 1, FIFO initialization
 	mfrc522_send(rc52x, RC52X_REG_FIFODataReg, sendData, sendLen);// Write sendData to the FIFO
 	rc52x_set_reg8(rc52x, RC52X_REG_BitFramingReg, bitFraming);// Bit adjustments
-	rc52x_set_reg8(rc52x, RC52X_REG_CommandReg, command);// Execute the command
-	if (command == RC52X_CMD_Transceive) {
-		//rc52x_set_reg8(rc52x, RC52X_REG_BitFramingReg, 0x80);// StartSend=1, transmission of data starts
-		rc52x_or_reg8(rc52x, RC52X_REG_BitFramingReg, 0x80);	// StartSend=1, transmission of data starts
-	}
+	rc52x_set_reg8(rc52x, RC52X_REG_CommandReg, RC52X_CMD_Transceive);// Execute the command
+
+	rc52x_or_reg8(rc52x, RC52X_REG_BitFramingReg, 0x80);	// StartSend=1, transmission of data starts
+
 
 	// Wait for the command to complete.
 	// In RC52X_Init() we set the TAuto flag in TModeReg. This means the timer automatically starts when the PCD stops transmitting.
-	// Each iteration of the do-while-loop takes 17.86μs.
-	// TODO check/modify for other architectures than Arduino Uno 16bit
-	uint16_t i;
-	uint8_t n;
 
-	for (i = 2000; i > 0; i--) {
-		n = RC52X_ReadRegister(rc52x, RC52X_REG_ComIrqReg);// ComIrqReg[7..0] bits are: Set1 TxIRq RxIRq IdleIRq HiAlertIRq LoAlertIRq ErrIRq TimerIRq
-		if (n & waitIRq) {// One of the interrupts that signal success has been set.
+
+	uint8_t regval;
+
+	uint32_t timeout = rc52x->get_time_ms() + 36;
+
+	while ((rc52x->get_time_ms()) < timeout) {
+		result = rc52x_get_reg8(rc52x, RC52X_REG_ComIrqReg, &regval);
+		if (result) return STATUS_ERROR;
+		if (regval & waitIRq) {// One of the interrupts that signal success has been set.
 			break;
 		}
-		if (n & 0x01) {			// Timer interrupt - nothing received in 25ms
+		if (regval & 0x01) {			// Timer interrupt - nothing received in 25ms
 			return STATUS_TIMEOUT;
 		}
-		// An error bit has been set, but we are checking it anyway so leave it for then
-//		if (n & 0x02) {
-//			return STATUS_ERROR;
-//		}
-
 	}
-	// 35.7ms and nothing happend. Communication with the MFRC522 might be down.
-	// WHy 35.7ms? Is this on some hardware timing for the original whatever this was developed on
-	// Using the 2000 iterations loop?
-	if (i == 0) {
 
-
-		uint8_t errorRegValue = RC52X_ReadRegister(rc52x, RC52X_REG_ErrorReg); // ErrorReg[7..0] bits are: WrErr TempErr reserved BufferOvfl CollErr CRCErr ParityErr ProtocolErr
-		(void)errorRegValue;
+	if (rc52x->get_time_ms() >= timeout) {
 		return STATUS_TIMEOUT;
 	}
 
 	// Stop now if any errors except collisions were detected.
-	uint8_t errorRegValue = RC52X_ReadRegister(rc52x, RC52X_REG_ErrorReg); // ErrorReg[7..0] bits are: WrErr TempErr reserved BufferOvfl CollErr CRCErr ParityErr ProtocolErr
+	uint8_t errorRegValue;
+	result = rc52x_get_reg8(rc52x, RC52X_REG_ErrorReg, &errorRegValue);
+	if (result) return STATUS_ERROR;
 	if (errorRegValue & 0x13) {	 // BufferOvfl ParityErr ProtocolErr
 		return STATUS_ERROR;
 	}
@@ -552,13 +482,22 @@ rc52x_result_t RC52X_CommunicateWithPICC(rc52x_t *rc52x, uint8_t command,	///< T
 
 	// If the caller wants data back, get it from the MFRC522.
 	if (backData && backLen) {
-		uint8_t n = RC52X_ReadRegister(rc52x, RC52X_REG_FIFOLevelReg);	// Number of uint8_ts in the FIFO
+		uint8_t n;
+		result = rc52x_get_reg8(rc52x, RC52X_REG_FIFOLevelReg, &n);
+		if (result) return STATUS_ERROR;
+
+
 		if (n > *backLen) {
 			return STATUS_NO_ROOM;
 		}
 		*backLen = n;							// Number of uint8_ts returned
-		mfrc522_recv(rc52x, RC52X_REG_FIFODataReg, backData, n);
-		_validBits = RC52X_ReadRegister(rc52x, RC52X_REG_ControlReg) & 0x07;// RxLastBits[2:0] indicates the number of valid bits in the last received uint8_t. If this value is 000b, the whole uint8_t is valid.
+		result = mfrc522_recv(rc52x, RC52X_REG_FIFODataReg, backData, n);
+		if (result) return STATUS_ERROR;
+
+		result = rc52x_get_reg8(rc52x, RC52X_REG_ControlReg, &_validBits);
+		_validBits &= 0x07;
+		if (result) return STATUS_ERROR;
+
 		if (validBits) {
 			*validBits = _validBits;
 		}
@@ -569,7 +508,10 @@ rc52x_result_t RC52X_CommunicateWithPICC(rc52x_t *rc52x, uint8_t command,	///< T
 		if (!collisionPos)
 			return STATUS_COLLISION;
 
-		uint8_t valueOfCollReg = RC52X_ReadRegister(rc52x, RC52X_REG_CollReg); // CollReg[7..0] bits are: ValuesAfterColl reserved CollPosNotValid CollPos[4:0]
+		uint8_t valueOfCollReg;
+		result = rc52x_get_reg8(rc52x, RC52X_REG_CollReg, &valueOfCollReg);
+		if (result) return STATUS_ERROR;
+
 		if (valueOfCollReg & 0x20) { // CollPosNotValid
 			*collisionPos = -1;
 			return STATUS_COLLISION; // Without a valid collision position we cannot continue
@@ -594,17 +536,6 @@ rc52x_result_t RC52X_CommunicateWithPICC(rc52x_t *rc52x, uint8_t command,	///< T
 		if (*backLen < 2 || _validBits != 0) {
 			return STATUS_CRC_WRONG;
 		}
-//		// Verify CRC_A - do our own calculation and store the control in controlBuffer.
-//		uint8_t controlBuffer[2];
-//		rc52x_result_t status = RC52X_CalculateCRC(rc52x, &backData[0],
-//				*backLen - 2, &controlBuffer[0]);
-//		if (status != STATUS_OK) {
-//			return status;
-//		}
-//		if ((backData[*backLen - 2] != controlBuffer[0])
-//				|| (backData[*backLen - 1] != controlBuffer[1])) {
-//			return STATUS_CRC_WRONG;
-//		}
 	}
 
 	return STATUS_OK;
@@ -628,98 +559,44 @@ rc52x_result_t RC52X_CommunicateWithPICC(rc52x_t *rc52x, uint8_t command,	///< T
  *
  * @return STATUS_OK on success, STATUS_??? otherwise. Probably STATUS_TIMEOUT if you supply the wrong key.
  */
-rc52x_result_t RC52X_Authenticate(rc52x_t *rc52x, uint8_t command, ///< PICC_CMD_MF_AUTH_KEY_A or PICC_CMD_MF_AUTH_KEY_B
-		uint8_t blockAddr, ///< The block number. See numbering in the comments in the .h file.
-		MIFARE_Key *key,	///< Pointer to the Crypteo1 key to use (6 uint8_ts)
-		picc_t *picc///< Pointer to Uid struct. The first 4 uint8_ts of the UID is used.
-		) {
-	uint8_t waitIRq = 0x10;		// IdleIRq
-
-	// Build command buffer
-	uint8_t sendData[12];
-	sendData[0] = command;
-	sendData[1] = blockAddr;
-	for (uint8_t i = 0; i < MF_KEY_SIZE; i++) {	// 6 key uint8_ts
-		sendData[2 + i] = key->keyuint8_t[i];
-	}
-	// Use the last uid uint8_ts as specified in http://cache.nxp.com/documents/application_note/AN10927.pdf
-	// section 3.2.5 "MIFARE Classic Authentication".
-	// The only missed case is the MF1Sxxxx shortcut activation,
-	// but it requires cascade tag (CT) uint8_t, that is not part of picc.
-	for (uint8_t i = 0; i < 4; i++) {		// The last 4 uint8_ts of the UID
-		sendData[8 + i] = picc->uidByte[i + picc->size - 4];
-	}
-
-	// Start the authentication.
-	return RC52X_CommunicateWithPICC(rc52x, RC52X_CMD_MFAuthent, waitIRq,
-			&sendData[0], sizeof(sendData), NULL, 0, NULL, 0, NULL, false, false);
-} // End RC52X_Authenticate()
-
-/**
- * Used to exit the PCD from its authenticated state.
- * Remember to call this function after communicating with an authenticated PICC - otherwise no new communications can start.
- */
-void RC52X_StopCrypto1(rc52x_t *rc52x) {
-	// Clear MFCrypto1On bit
-	RC52X_ClearRegisterBitMask(rc52x, RC52X_REG_Status2Reg, 0x08); // Status2Reg[7..0] bits are: TempSensClear I2CForceHS reserved reserved MFCrypto1On ModemState[2:0]
-} // End RC52X_StopCrypto1()
-
-
-/////////////////////////////////////////////////////////////////////////////////////
-// Support functions
-/////////////////////////////////////////////////////////////////////////////////////
-
-/**
- * Wrapper for MIFARE protocol communication.
- * Adds CRC_A, executes the Transceive command and checks that the response is MF_ACK or a timeout.
- *
- * @return STATUS_OK on success, STATUS_??? otherwise.
- */
-rc52x_result_t RC52X_MIFARE_Transceive(rc52x_t *rc52x, uint8_t *sendData,	///< Pointer to the data to transfer to the FIFO. Do NOT include the CRC_A.
-		uint8_t sendLen,		///< Number of uint8_ts in sendData.
-		bool acceptTimeout	///< True => A timeout is also success
-		) {
-	rc52x_result_t result;
-	uint8_t cmdBuffer[18]; // We need room for 16 uint8_ts data and 2 uint8_ts CRC_A.
-
-	// Sanity check
-	if (sendData == NULL || sendLen > 16) {
-		return STATUS_INVALID;
-	}
-
-	/*// moved into CommunicateWithPICC
-	// Copy sendData[] to cmdBuffer[] and add CRC_A
-	memcpy(cmdBuffer, sendData, sendLen);
-	result = RC52X_CalculateCRC(rc52x, cmdBuffer, sendLen, &cmdBuffer[sendLen]);
-	if (result != STATUS_OK) {
-		return result;
-	}
-	sendLen += 2;
-	*/
-
-
-	// Transceive the data, store the reply in cmdBuffer[]
-	uint8_t waitIRq = 0x30;		// RxIRq and IdleIRq
-	uint8_t cmdBufferSize = sizeof(cmdBuffer);
-	uint8_t validBits = 0;
-	result = RC52X_CommunicateWithPICC(rc52x, RC52X_CMD_Transceive, waitIRq,
-			cmdBuffer, sendLen, cmdBuffer, &cmdBufferSize, &validBits, 0, NULL,
-			true, false );
-	if (acceptTimeout && result == STATUS_TIMEOUT) {
-		return STATUS_OK;
-	}
-	if (result != STATUS_OK) {
-		return result;
-	}
-	// The PICC must reply with a 4 bit ACK
-	if (cmdBufferSize != 1 || validBits != 4) {
-		return STATUS_ERROR;
-	}
-	if (cmdBuffer[0] != MF_ACK) {
-		return STATUS_MIFARE_NACK;
-	}
-	return STATUS_OK;
-} // End RC52X_MIFARE_Transceive()
+//rc52x_result_t RC52X_Authenticate(rc52x_t *rc52x, uint8_t command, ///< PICC_CMD_MF_AUTH_KEY_A or PICC_CMD_MF_AUTH_KEY_B
+//		uint8_t blockAddr, ///< The block number. See numbering in the comments in the .h file.
+//		MIFARE_Key *key,	///< Pointer to the Crypteo1 key to use (6 uint8_ts)
+//		picc_t *picc///< Pointer to Uid struct. The first 4 uint8_ts of the UID is used.
+//		) {
+//
+//
+//
+//	uint8_t waitIRq = 0x10;		// IdleIRq
+//
+//	// Build command buffer
+//	uint8_t sendData[12];
+//	sendData[0] = command;
+//	sendData[1] = blockAddr;
+//	for (uint8_t i = 0; i < MF_KEY_SIZE; i++) {	// 6 key uint8_ts
+//		sendData[2 + i] = key->keyuint8_t[i];
+//	}
+//	// Use the last uid uint8_ts as specified in http://cache.nxp.com/documents/application_note/AN10927.pdf
+//	// section 3.2.5 "MIFARE Classic Authentication".
+//	// The only missed case is the MF1Sxxxx shortcut activation,
+//	// but it requires cascade tag (CT) uint8_t, that is not part of picc.
+//	for (uint8_t i = 0; i < 4; i++) {		// The last 4 uint8_ts of the UID
+//		sendData[8 + i] = picc->uidByte[i + picc->size - 4];
+//	}
+//
+//	// Start the authentication.
+//	return RC52X_CommunicateWithPICC(rc52x, RC52X_CMD_MFAuthent, waitIRq,
+//			&sendData[0], sizeof(sendData), NULL, 0, NULL, 0, NULL, false, false);
+//} // End RC52X_Authenticate()
+//
+///**
+// * Used to exit the PCD from its authenticated state.
+// * Remember to call this function after communicating with an authenticated PICC - otherwise no new communications can start.
+// */
+//void RC52X_StopCrypto1(rc52x_t *rc52x) {
+//	// Clear MFCrypto1On bit
+//	RC52X_ClearRegisterBitMask(rc52x, RC52X_REG_Status2Reg, 0x08); // Status2Reg[7..0] bits are: TempSensClear I2CForceHS reserved reserved MFCrypto1On ModemState[2:0]
+//} // End RC52X_StopCrypto1()
 
 
 rc52x_result_t rc52x_set_bit_framing(bs_pdc_t*pdc, int rxAlign, int txLastBits) {

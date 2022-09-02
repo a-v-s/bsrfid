@@ -11,6 +11,7 @@
 #include "bshal_transport.h"
 
 typedef int(*delay_ms_f)(int ms);
+typedef int(*get_time_ms_f)(void);
 
 typedef enum {
 	STATUS_OK				= 0,	// Success
@@ -42,8 +43,8 @@ typedef struct {
 	bshal_transport_type_t transport_type;
 	bshal_transport_instance_t transport_instance;
 	delay_ms_f delay_ms;
+	get_time_ms_f get_time_ms;
 	TransceiveData_f TransceiveData;
-	//SetBitFraming_f SetBitFraming;
 } bs_pdc_t;
 
 

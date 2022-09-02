@@ -156,9 +156,9 @@ rc52x_result_t RC66X_CommunicateWithPICC(rc66x_t *rc66x, uint8_t command,	///< T
 	// Each iteration of the do-while-loop takes 17.86μs.
 	// TODO check/modify for other architectures than Arduino Uno 16bit
 
-	uint32_t begin = HAL_GetTick(); // TODO replace with get_time_ms();
+	uint32_t begin = rc66x->get_time_ms();
 
-	while ((HAL_GetTick() - begin) < 36) {
+	while ((rc66x->get_time_ms() - begin) < 36) {
 		uint8_t irq0, irq1;
 		rc66x_get_reg8(rc66x, RC66X_REG_IRQ0, &irq0);
 		rc66x_get_reg8(rc66x, RC66X_REG_IRQ1, &irq1);
@@ -168,9 +168,8 @@ rc52x_result_t RC66X_CommunicateWithPICC(rc66x_t *rc66x, uint8_t command,	///< T
 		if (irq1 & 0x01) {			// Timer interrupt - nothing received in 25ms
 			return STATUS_TIMEOUT;
 		}
-
-		// Do we have a bit to indicate a CRC error?
 	}
+
 	// 35.7ms and nothing happend. Communication with the MFRC522 might be down.
 	if ( (HAL_GetTick() - begin) >= 36) {
 		return STATUS_TIMEOUT;
