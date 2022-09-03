@@ -206,9 +206,9 @@ rc52x_result_t rc52x_transceive(rc52x_t *rc52x, uint8_t *sendData, ///< Pointer 
 	result = rc52x_get_reg8(rc52x, RC52X_REG_ErrorReg, &errorRegValue);
 	if (result)
 		return STATUS_ERROR;
-	if (errorRegValue & 0x13) {	 // BufferOvfl ParityErr ProtocolErr
-		return STATUS_ERROR;
-	}
+//	if (errorRegValue & 0x13) {	 // BufferOvfl ParityErr ProtocolErr
+//		return STATUS_ERROR;
+//	}
 
 	uint8_t _validBits = 0;
 

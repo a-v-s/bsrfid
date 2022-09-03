@@ -57,7 +57,7 @@ typedef struct {
 	};
 	picc_type_t card_type;	//TODO
 	nfc_type_t nfc_type;
-	union {
+	//union {
 		struct {
 			uint8_t fixed_header;
 			uint8_t vendor_id;
@@ -67,10 +67,10 @@ typedef struct {
 			uint8_t product_version_minor;
 			uint8_t storage_size;
 			uint8_t protocol_type;
-			uint16_t crc;
-		} get_version_response;
+			//uint16_t crc;
+		} version_response;
 		uint8_t rats[16];
-	};
+	//};
 	struct {
 		uint8_t page_count;
 		uint8_t page_size;

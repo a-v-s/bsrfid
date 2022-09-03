@@ -8,8 +8,6 @@
 #include "picc.h"
 #include "pdc.h"
 
-
-
 /**
  * Transmits a REQuest command, Type A. Invites PICCs in state IDLE to go to READY and prepare for anticollision or selection. 7 bit frame.
  * Beware: When two PICCs are in the field at the same time I often get STATUS_TIMEOUT - probably due do bad antenna design.
@@ -43,12 +41,12 @@ rc52x_result_t PICC_WakeupA(bs_pdc_t *pdc, picc_t *picc) {
  */
 rc52x_result_t PICC_REQA_or_WUPA(bs_pdc_t *pdc, uint8_t command, ///< The command to send - PICC_CMD_REQA or PICC_CMD_WUPA
 		uint8_t *bufferATQA, ///< The buffer to store the ATQA (Answer to request) in
-		size_t *bufferSize///< Buffer size, at least two bytes. Also number of bytes returned if STATUS_OK.
+		size_t *bufferSize ///< Buffer size, at least two bytes. Also number of bytes returned if STATUS_OK.
 		) {
-	uint8_t validBits;
+	uint8_t validBits = 0;
 	rc52x_result_t status;
 
-	if (bufferATQA == NULL || *bufferSize < 2) {// The ATQA response is 2 bytes long.
+	if (bufferATQA == NULL || *bufferSize < 2) { // The ATQA response is 2 bytes long.
 		return STATUS_NO_ROOM;
 	}
 
@@ -56,7 +54,6 @@ rc52x_result_t PICC_REQA_or_WUPA(bs_pdc_t *pdc, uint8_t command, ///< The comman
 	//RC52X_ClearRegisterBitMask(rc52x, RC52X_REG_CollReg, 0x80);// ValuesAfterColl=1 => Bits received after collision are cleared.
 
 	validBits = 7;// For REQA and WUPA we need the short frame format - transmit only 7 bits of the last (and only) uint8_t. TxLastBits = BitFramingReg[2..0]
-
 
 	status = pdc->TransceiveData(pdc, &command, 1, bufferATQA, bufferSize,
 			&validBits, 0, NULL, false, false);
@@ -277,10 +274,10 @@ rc52x_result_t PICC_Select(bs_pdc_t *pdc, picc_t *picc, uint8_t validBits) {
 		 return result;
 		 }
 
-		if ((buffer[2] != responseBuffer[1])
-				|| (buffer[3] != responseBuffer[2])) {
-			return STATUS_CRC_WRONG;
-		}
+		 if ((buffer[2] != responseBuffer[1])
+		 || (buffer[3] != responseBuffer[2])) {
+		 return STATUS_CRC_WRONG;
+		 }
 		 */
 
 		if (responseBuffer[0] & 0x04) { // Cascade bit set - UID not complete yes
@@ -315,7 +312,8 @@ rc52x_result_t PICC_HaltA(bs_pdc_t *pdc) {
 	//		If the PICC responds with any modulation during a period of 1 ms after the end of the frame containing the
 	//		HLTA command, this response shall be interpreted as 'not acknowledge'.
 	// We interpret that this way: Only STATUS_TIMEOUT is a success.
-	result = pdc->TransceiveData(pdc, buffer, 2, NULL, NULL, NULL, 0, NULL, true, true);
+	result = pdc->TransceiveData(pdc, buffer, 2, NULL, NULL, NULL, 0, NULL,
+			true, true);
 
 	if (result == STATUS_TIMEOUT) {
 		return STATUS_OK;
@@ -326,9 +324,7 @@ rc52x_result_t PICC_HaltA(bs_pdc_t *pdc) {
 	return result;
 } // End PICC_HaltA()
 
-
-
-int PICC_RATS(bs_pdc_t *pdc, picc_t *picc){
+int PICC_RATS(bs_pdc_t *pdc, picc_t *picc) {
 	int status;
 	uint8_t buffer[4];
 
@@ -336,30 +332,16 @@ int PICC_RATS(bs_pdc_t *pdc, picc_t *picc){
 	buffer[1] = 0x00; // 0x00 = 16 bytes
 
 	size_t backsize = 16;
-	status =  pdc->TransceiveData(pdc, buffer, 2, &picc->rats, &backsize,
-				NULL, 0, NULL, true, true);
-	if (status) return status;
-//
-//	// Do we have to send PPS before we are allowed to communicate?
-//
-//	buffer[0] = 0xD0;	// CID is hardcoded as 0 in RATS
-//	buffer[1] = 0x01;	// PPS0 indicates whether PPS1 is present
-//
-//	status =  pdc->TransceiveData(pdc, buffer, 2, NULL, NULL,
-//				NULL, 0, NULL, true, true);
-
-
-	// Since I am in 14443-4 mode,
-	// Do I need to send some SELECT_APPLICATION command or so?
+	status = pdc->TransceiveData(pdc, buffer, 2, &picc->rats, &backsize, NULL,
+			0, NULL, true, true);
+	if (status)
+		return status;
 
 	return status;
 
-
-
 }
 
-
-int MIFARE_GET_VERSION(bs_pdc_t *pdc, picc_t *picc){
+int MIFARE_GET_VERSION(bs_pdc_t *pdc, picc_t *picc) {
 	uint8_t buffer[3];
 	int result;
 	// Build command buffer
@@ -371,55 +353,94 @@ int MIFARE_GET_VERSION(bs_pdc_t *pdc, picc_t *picc){
 //	}
 	size_t backsize = 10;
 
-
-	return pdc->TransceiveData(pdc, buffer, 1, &picc->get_version_response, &backsize,
-				NULL, 0, NULL, true, true);
-
+	return pdc->TransceiveData(pdc, buffer, 1, &picc->version_response,
+			&backsize, NULL, 0, NULL, true, true);
 
 }
 
-int DESFIRE_GET_VERSION(bs_pdc_t *pdc, picc_t *picc){
-	uint8_t buffer[7] =
-			{
-					0x90 ,0x60 ,0x00 ,0x00 ,0x00
-			};
-	int result;
-
+int DESFIRE_GET_VERSION(bs_pdc_t *pdc, picc_t *picc) {
+	rc52x_result_t result;
 	size_t backsize = 10;
+//	{
+//		uint8_t buffer[7] = { 0x00, 0xA4, 0x00, 0x00, 0x00, 0x00 };
+//
+//
+//
+//
+//		result = pdc->TransceiveData(pdc, buffer, 6,
+//				&picc->version_response, &backsize, NULL, 0, NULL, true, true);
+//
+//	}
 
+	{
+		uint8_t send_buffer[7] = { 0x02, 0x90, 0x60, 0x00, 0x00, 0x00 };
 
-	int status =  pdc->TransceiveData(pdc, buffer, 5, &picc->get_version_response, &backsize,
-				NULL, 0, NULL, true, true);
+		// ADPU must be prefixed with a 0x02
+		// This is a "Protocol Control Byte"
 
-	return status;
+		// Answer will also be prefixed with 0x02
+		// and suffixed with a status code 0x91 0xAF
 
+		uint8_t response_buffer[20];
+		backsize = sizeof(response_buffer);
+
+		result = pdc->TransceiveData(pdc, send_buffer, 6, response_buffer,
+				&backsize, NULL, 0, NULL, true, true);
+		if (0 == result && backsize == 10 && response_buffer[8] == 0x91
+				&& response_buffer[9] == 0xAF) {
+			memcpy((&picc->version_response) + 1, response_buffer + 1, 9);
+
+			send_buffer[2] = 0xAF;
+
+			int countdown = 5;
+			while (response_buffer[9] == 0xAF && backsize == 10) {
+
+				send_buffer[0] ^= 1;
+				backsize = sizeof(response_buffer);
+				memset (response_buffer, 0, sizeof(response_buffer));
+				result = pdc->TransceiveData(pdc, send_buffer, 6,
+						response_buffer, &backsize, NULL, 0, NULL, true, true);
+
+				countdown--;
+				if (!countdown)
+					break;
+			}
+
+			if (0 == result && backsize == 10 && response_buffer[8] == 0x91
+					&& response_buffer[9] == 0x00) {
+				return 0;
+			}
+
+		}
+
+	}
+
+	return -1;
 
 }
 
 //
 
-
-int MIFARE_AUTHA(bs_pdc_t *pdc, picc_t *picc, int page){
+int MIFARE_AUTHA(bs_pdc_t *pdc, picc_t *picc, int page) {
 // TODO / PDC Specific
 }
 
-
-int MIFARE_READ(bs_pdc_t *pdc, picc_t *picc, int page, uint8_t* data){
+int MIFARE_READ(bs_pdc_t *pdc, picc_t *picc, int page, uint8_t *data) {
 	uint8_t buffer[4];
 	int result;
-	// Build command buffer
+// Build command buffer
 	buffer[0] = 0x30;
 	buffer[1] = page;
 
 	size_t backsize = 16;
-	uint8_t validBits;
+	uint8_t validBits = 0;
 
-	result = pdc->TransceiveData(pdc, buffer, 2, data, &backsize,
-				&validBits, 0, NULL, true, true);
+	result = pdc->TransceiveData(pdc, buffer, 2, data, &backsize, &validBits, 0,
+			NULL, true, true);
 
 	if (STATUS_OK == result && 1 == backsize && 4 == validBits) {
 		// We've received a status in stead of data
-		switch(*data) {
+		switch (*data) {
 		case 0x0:
 			// invalid argument
 			result = STATUS_INVALID;
@@ -444,26 +465,29 @@ int MIFARE_READ(bs_pdc_t *pdc, picc_t *picc, int page, uint8_t* data){
 			result = STATUS_ERROR;
 			break;
 		}
+		return result;
 	}
-
+	if (backsize != 10) {
+		return STATUS_ERROR;
+	}
 	return result;
+
 }
 
-
-int MFU_Write(bs_pdc_t *pdc, picc_t *picc, int page, uint8_t* data){
+int MFU_Write(bs_pdc_t *pdc, picc_t *picc, int page, uint8_t *data) {
 	uint8_t buffer[8];
 	int result;
-	// Build command buffer
+// Build command buffer
 	buffer[0] = 0xA2;
 	buffer[1] = page;
-	memcpy(buffer+2, data,4);
+	memcpy(buffer + 2, data, 4);
 
 	uint8_t backBuffer[1];
 	size_t backsize = 1;
-	uint8_t validBits=0;
+	uint8_t validBits = 0;
 
 	result = pdc->TransceiveData(pdc, buffer, 6, backBuffer, &backsize,
-				&validBits, 0, NULL, true, false);
+			&validBits, 0, NULL, true, false);
 
 // Fixed: validBits was uninitialised
 //	// On RC522:
@@ -480,7 +504,7 @@ int MFU_Write(bs_pdc_t *pdc, picc_t *picc, int page, uint8_t* data){
 
 	if (STATUS_OK == result && 1 == backsize && 4 == validBits) {
 		// We've received a status in stead of data
-		switch(*backBuffer) {
+		switch (*backBuffer) {
 		case 0x0:
 			// invalid argument
 			result = STATUS_INVALID;

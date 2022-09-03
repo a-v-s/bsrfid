@@ -104,8 +104,8 @@ rc52x_result_t rc66x_transceive(rc66x_t *rc66x, uint8_t *sendData,
 
 	uint32_t begin = rc66x->get_time_ms();
 
-	while ((rc66x->get_time_ms() - begin) < 36) {
-		uint8_t irq0, irq1;
+	uint8_t irq0, irq1;
+	while ((rc66x->get_time_ms() - begin) < RC66X_TIMEOUT_ms) {
 		rc66x_get_reg8(rc66x, RC66X_REG_IRQ0, &irq0);
 		rc66x_get_reg8(rc66x, RC66X_REG_IRQ1, &irq1);
 		if (irq0 & waitIRq) {// One of the interrupts that signal success has been set.
@@ -124,8 +124,8 @@ rc52x_result_t rc66x_transceive(rc66x_t *rc66x, uint8_t *sendData,
 	// Stop now if any errors except collisions were detected.
 	uint8_t errorRegValue;
 	rc66x_get_reg8(rc66x, RC66X_REG_Error, &errorRegValue);
-	//if (errorRegValue & 0b01100011) {	 // BufferOvfl ParityErr ProtocolErr
-	if (errorRegValue & 0b01100010) {	 // BufferOvfl ParityErr ProtocolErr
+	//if (errorRegValue & 0b01100011) {
+	if (errorRegValue & 0b01110010) {
 		return STATUS_ERROR;
 	}
 
@@ -145,6 +145,7 @@ rc52x_result_t rc66x_transceive(rc66x_t *rc66x, uint8_t *sendData,
 			fifo_data_len++;
 
 		if (fifo_data_len > *backLen) {
+			 *backLen = fifo_data_len;
 			return STATUS_NO_ROOM;
 		}
 		*backLen = fifo_data_len;					// Number of bytes returned
