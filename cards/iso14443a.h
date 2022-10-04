@@ -23,7 +23,28 @@ typedef enum {
 		PICC_CMD_SEL_CL3		= 0x97,		// Anti collision/Select, Cascade Level 3
 		PICC_CMD_HLTA			= 0x50,		// HaLT command, Type A. Instructs an ACTIVE PICC to go to state HALT.
 		PICC_CMD_RATS           = 0xE0,     // Request command for Answer To Reset.
+} iso14443a_oldport_cmd_t;
+
+
+typedef enum {
+	iso14443a_command_REQA			= 0x26,		// REQuest command, Type A. Invites PICCs in state IDLE to go to READY and prepare for anticollision or selection. 7 bit frame.
+	iso14443a_command_WUPA			= 0x52,		// Wake-UP command, Type A. Invites PICCs in state IDLE and HALT to go to READY(*) and prepare for anticollision or selection. 7 bit frame.
+
+	iso14443a_command_SEL_CL1		= 0x93,		// Anti collision/Select, Cascade Level 1
+	iso14443a_command_SEL_CL2		= 0x95,		// Anti collision/Select, Cascade Level 2
+	iso14443a_command_SEL_CL3		= 0x97,		// Anti collision/Select, Cascade Level 3
+	iso14443a_command_HLTA			= 0x50,		// HaLT command, Type A. Instructs an ACTIVE PICC to go to state HALT.
+
+
+	iso14443_4_command_RATS           = 0xE0,     // Request command for Answer To Reset.
+
 } iso14443a_command_t;
+
+typedef struct {
+	unsigned int bytes;
+	unsigned int bits;
+	unsigned int level;
+} iso14443a_anticol_state_t;
 
 typedef enum {
 	iso14443a_atqa_uid_size_single = 0b00,
@@ -66,5 +87,8 @@ typedef union {
 	};
 	uint8_t as_uint8;
 } iso14443a_sak_t;
+
+
+
 #pragma pack (pop)
 #endif /* BSRFID_CARDS_ISO14443A_H_ */

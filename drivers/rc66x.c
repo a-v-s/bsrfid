@@ -80,7 +80,7 @@ void rc66x_init(rc66x_t *rc66x) {
 }
 
 rc52x_result_t rc66x_transceive(rc66x_t *rc66x, uint8_t *sendData,
-		uint8_t sendLen, uint8_t *backData, uint8_t *backLen,
+		uint8_t sendLen, uint8_t *recv_data, uint8_t *recv_size,
 		uint8_t *validBits, uint8_t rxAlign, uint8_t *collpos, bool sendCRC,
 		bool recvCRC) {
 	uint8_t waitIRq = 0b00010110;		// RxIRq and IdleIRq + ErrIRQ
@@ -121,6 +121,8 @@ rc52x_result_t rc66x_transceive(rc66x_t *rc66x, uint8_t *sendData,
 		return STATUS_TIMEOUT;
 	}
 
+	// Should we delay here to prevent short frame errors??
+
 	// Stop now if any errors except collisions were detected.
 	uint8_t errorRegValue;
 	rc66x_get_reg8(rc66x, RC66X_REG_Error, &errorRegValue);
@@ -129,28 +131,36 @@ rc52x_result_t rc66x_transceive(rc66x_t *rc66x, uint8_t *sendData,
 		return STATUS_ERROR;
 	}
 
-	uint8_t _validBits = 0;
+	// if a pointer is supplied for the collpos
+	if (collpos) {
+		// get the collision position
+		rc66x_get_reg8(rc66x, RC66X_REG_RxColl, collpos);
+		// check for the valid bit
+		if (! (*collpos&0x80)) {
+			// if not valid, set to 0
+			*collpos = 0;
+		} else {
+			// if valid, strip valid bit
+			*collpos &= 0x7F;
+		}
+	}
+
+
+	if (validBits) {
+		rc66x_get_reg8(rc66x, RC66X_REG_RxBitCtrl, validBits);
+		*validBits &= 0x07;
+	}
+
 
 	// If the caller wants data back, get it from the MFRC522.
-	if (backData && backLen) {
+	if (recv_data && recv_size) {
 		uint8_t fifo_data_len;
-		rc66x_get_reg8(rc66x, RC66X_REG_RxBitCtrl, &_validBits);
-		_validBits &= 0x07;	// RxLastBits[2:0] indicates the number of valid bits in the last received uint8_t. If this value is 000b, the whole uint8_t is valid.
-		if (validBits) {
-			*validBits = _validBits;
-		}
-
 		rc66x_get_reg8(rc66x, RC66X_REG_FIFOLength, &fifo_data_len);// Number of bytes in the FIFO
-		if (_validBits)
-			fifo_data_len++;
-
-		if (fifo_data_len > *backLen) {
-			 *backLen = fifo_data_len;
+		*recv_size = fifo_data_len;
+		if (fifo_data_len > *recv_size) {
 			return STATUS_NO_ROOM;
 		}
-		*backLen = fifo_data_len;					// Number of bytes returned
-		rc66x_recv(rc66x, RC66X_REG_FIFOData, backData, fifo_data_len);
-
+		rc66x_recv(rc66x, RC66X_REG_FIFOData, recv_data, *recv_size);
 	}
 
 	// Tell about collisions
@@ -159,7 +169,7 @@ rc52x_result_t rc66x_transceive(rc66x_t *rc66x, uint8_t *sendData,
 	}
 
 //	// Does this still make sense?
-//	if (backData && backLen && recvCRC) {
+//	if (backData && recv_size && recvCRC) {
 //		// In this case a MIFARE Classic NAK is not OK.
 //		if (*backLen == 1 && _validBits == 4) {
 //			return STATUS_MIFARE_NACK;
@@ -207,7 +217,7 @@ rc66x_result_t rc66x_crypto1_begin(bs_pdc_t *rc66x, picc_t *picc) {
 
 	rc66x_set_reg8(rc66x, RC66X_REG_FIFOControl, 0xB0);	// FlushBuffer = 1, FIFO initialization
 	memcpy(buffer, &picc->mfc_crypto1, 2);
-	memcpy(buffer + 2, picc->uidByte + picc->size - 4, 4);
+	memcpy(buffer + 2, picc->uid+ picc->uid_size - 4, 4);
 	rc66x_send(rc66x, RC66X_REG_FIFOData, buffer, 6);
 	rc66x_set_reg8(rc66x, RC66X_REG_Command, RC66X_CMD_MFAuthent);// Execute the command
 

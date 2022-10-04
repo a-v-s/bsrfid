@@ -13,6 +13,7 @@
 
 #include "rc52x_transport.h"
 #include "rc52x.h"
+#include "rc52x_ref.h"
 
 #include "iso14443a.h"
 
@@ -39,14 +40,12 @@ const char* rc52x_get_chip_name(rc52x_t *rc52x) {
 	case 0x80:
 		return "PN512 V1";
 	case 0x82:
-
 		return "PN512 V2";
 
-		// Note: this is not in the datasheet
 	case 0x88:
 		return "FM17522";
-
-		// TODO Chip ID for FM17550
+	case 0x89:
+		return "FM17550";
 
 	case 0x90:
 		return "MFRC522 V0";
@@ -63,6 +62,67 @@ const char* rc52x_get_chip_name(rc52x_t *rc52x) {
 	default:
 		return "Unknown";
 	}
+}
+
+rc52x_ref_status_t rc52x_self_test(rc52x_t *rc52x) {
+	uint8_t chip_id = 0xFF;
+	int result = rc52x_get_chip_version(rc52x, &chip_id);
+	if (result)
+		return rc52x_ref_status_error;
+
+	const char* ref = NULL;
+	switch (chip_id) {
+
+	case 0x80:
+		// "PN512 V1";
+		ref = rc52x_ref_pn512_v1;
+		break;
+
+	case 0x82:
+		// "PN512 V2";
+		ref = rc52x_ref_pn512_v2;
+		break;
+
+	case 0x88:
+		// Note: this is not in the datasheet
+		// "FM17522";
+		ref = rc52x_ref_fm17522;
+		break;
+		// TODO Chip ID for FM17550
+
+	case 0x90:
+		// "MFRC522 V0";
+		ref = rc52x_ref_mfrc522_V0;
+		break;
+	case 0x91:
+		// "MFRC522 V1";
+		ref = rc52x_ref_mfrc522_V1;
+				break;
+	case 0x92:
+		// "MFRC522 V2";
+		ref = rc52x_ref_mfrc522_V2;
+		break;
+
+	case 0xB1:
+		// "MRFC523 V1";
+		ref = rc52x_ref_mfrc523_V1;
+				break;
+	case 0xB2:
+		// "MRFC523 V2";
+		ref = rc52x_ref_mfrc523_V2;
+		break;
+
+	default:
+		break;
+	}
+	if (!ref)
+		return rc52x_ref_status_unknown;
+
+	// TODO Perform the self test
+	// https://github.com/miguelbalboa/rfid/blob/b2ff919438c2c2924092de8348b19049359dddd0/src/MFRC522.cpp#L326
+
+	return rc52x_ref_status_unknown;
+
 }
 
 /**
@@ -306,7 +366,7 @@ rc52x_result_t rc52x_crypto1_begin(bs_pdc_t *rc52x, picc_t *picc) {
 
 	uint8_t buffer[12];
 	memcpy(buffer, &picc->mfc_crypto1, 8);
-	memcpy(buffer + 8, picc->uidByte + picc->size - 4, 4);
+	memcpy(buffer + 8, picc->uid + picc->uid_size - 4, 4);
 
 	mfrc522_send(rc52x, RC52X_REG_FIFODataReg, buffer, 12);
 

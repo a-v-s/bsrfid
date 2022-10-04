@@ -1,6 +1,6 @@
 /******************************************************************************\
 
-File:         st25r39.h
+File:         st25r95.h
 Author:       André van Schoubroeck
 License:      MIT
 
@@ -13,7 +13,7 @@ This implements the STM ST25R95 family of RFID reader ICs
 ********************************************************************************
 MIT License
 
-Copyright (c) 2020 André van Schoubroeck <andre@blaatschaap.be>
+Copyright (c) 2020, 2022 André van Schoubroeck <andre@blaatschaap.be>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -48,3 +48,45 @@ Differences:
 +----------+-----+------+----------------+
 
 *******************************************************************************/
+
+#define ST25R95_CMD_IDN				(0x01)	//
+#define ST25R95_CMD_PROTOCOLSELECT	(0x02)
+#define ST25R95_CMD_POLLFIELD 		(0x03)
+#define ST25R95_CMD_SendRecv 		(0x04)
+#define ST25R95_CMD_LISTEN 			(0x05)
+#define ST25R95_CMD_SEND 			(0x06)
+#define ST25R95_CMD_IDLE 			(0x07)
+#define ST25R95_CMD_RDREG 			(0x08)
+#define ST25R95_CMD_WRREG 			(0x09)
+#define ST25R95_CMD_BaudRate 		(0x0A)
+#define ST25R95_CMD_SubFreqRes 		(0x0B)
+#define ST25R95_CMD_ACFILTER 		(0x0D)
+#define ST25R95_CMD_Echo 			(0x55)
+
+#define ST25R95_VAL_PROTOCOLSELECT_FIELD_OFF	(0x00)
+#define ST25R95_VAL_PROTOCOLSELECT_ISO_15693	(0x01)
+#define ST25R95_VAL_PROTOCOLSELECT_ISO_14443A	(0x02)
+#define ST25R95_VAL_PROTOCOLSELECT_ISO_14443B	(0x03)
+#define ST25R95_VAL_PROTOCOLSELECT_ISO_18092	(0x04)
+
+typedef enum {
+	speed_26_kbps = 0b00,
+	speed_52_kbps = 0b01,
+	speed_6_kbps = 0b10,
+} st25r95_val_protocolselect_parameters_iso15693_speed_t;
+
+typedef union {
+	uint8_t field_off;
+	struct {
+		unsigned int append_crc : 1;
+		unsigned int single_or_dual_subcarrier :1;
+		unsigned int modulation_10_or_100 : 1;
+		unsigned int delay_or_wait : 1;
+		st25r95_val_protocolselect_parameters_iso15693_speed_t speed : 2;
+	} iso15693;
+	struct {} iso14443a;
+	struct {} iso14443b;
+	struct {} iso18092;
+} st25r95_val_protocolselect_parameters_t;
+
+

@@ -13,6 +13,8 @@
 typedef int(*delay_ms_f)(int ms);
 typedef int(*get_time_ms_f)(void);
 
+
+
 typedef enum {
 	STATUS_OK				= 0,	// Success
 	STATUS_ERROR			= -1,	// Error in communication
@@ -26,8 +28,8 @@ typedef enum {
 	STATUS_MIFARE_NACK		= -9,		// A MIFARE PICC responded with NAK.
 	STATUS_AUTH_ERROR		= -10,
 	STATUS_EEPROM_ERROR		= -11,
-} rc52x_result_t;
-
+} pdc_result_t;
+typedef pdc_result_t rc52x_result_t;
 
 
 

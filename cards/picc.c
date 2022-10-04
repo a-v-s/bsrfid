@@ -8,6 +8,135 @@
 #include "picc.h"
 #include "pdc.h"
 
+pdc_result_t picc_reqa(bs_pdc_t * pdc, picc_t * picc) {
+	//return PICC_RequestA(pdc, picc);
+
+	uint8_t validBits = 7; // Short Frame
+	uint8_t command = PICC_CMD_REQA;
+	size_t atqa_size = sizeof(picc->atqa);
+	pdc_result_t status = pdc->TransceiveData(pdc, &command, 1, &picc->atqa, &atqa_size,
+			&validBits, 0, NULL, false, false);
+	//status = RC52X_TransceiveData(rc52x, &command, 1, bufferATQA, bufferSize, &validBits, 0, false);
+	if (status != STATUS_OK) {
+		return status;
+	}
+	if (atqa_size != 2 || validBits != 0) {	// ATQA must be exactly 16 bits.
+		return STATUS_ERROR;
+	}
+	return status;
+}
+
+// TODO: Implement a new ISO 14443 A AntiCollision
+// 	Replace what PICC_Select does, with proper AntiCollision
+//	Thus detects all the PICCs in the field, up to the number
+//	of picc_t elements in a buffer provided.
+pdc_result_t picc_anticol_iso14443a(bs_pdc_t * pdc, picc_t * picc_array, int *picc_count){
+	uint8_t send_buffer[7];
+	// Zero the picc_array for initial state;
+	memset(picc_array, 0, *picc_count * sizeof(picc_t));
+	int index = 0;
+	pdc_result_t result;
+	// Note that if one or more cards are present, they'll
+	// answer the REQA command. Therefore this may already collide.
+	// Thus, can we even trust any data in the picc->atqa?
+	// As this contains the UID size, but cards of different UID
+	// sizes might be present. Furthermore, the bit frame says
+	// one bit out of 5 must be set. While known cards that
+	// do not implement anti collision, such as Topaz,
+	// set none, according to the specs, setting any
+	// number other then 1 should mean no bitframe anticol.
+	// I don't think we should rely on any
+	// of this and just proceed with anti collision,
+	// and handle something like Topaz separately,
+	// if we even decide to handle those as I haven't
+	// encountered any in the wild, those are rare.
+	// The company appears to be gone, and the NFC Forum
+	// appears to have abandoned NFC Type 1 anyways.
+
+	result = picc_reqa(pdc,picc_array);
+	if (result!=STATUS_OK && result != STATUS_COLLISION)
+		return result;
+
+	// At this point at least one card is present
+
+	// If we cannot assume the length of the UID from the ATQA
+	// when multiple cards are present. We will only look at
+	// SAK responses. Furthermore, I would place the collisionpos/validbits
+	// in the picc_t:
+	// When we have a collision, we copy the picc_t into an empty
+	// position in the array, flipping the colliding bit,
+	// then we repeat with the current known bits in the current
+	// picc_t, and attempt to complete the anticollision,
+	// then we repeat it for the next.
+
+	// Note, up to the complete UID (in the current cascadelevel)
+	// CRC is disabled.
+	// After the UD  a "BCC" is added, XOR'ing the CRC bytes
+
+	char send_buff[7];
+	size_t send_size = 2;
+	char recv_buff[7];
+	size_t recv_size = 7;
+	bool send_crc = false;
+	uint8_t coll_pos = -1;
+	//uint8_t valid_bits = 0;
+
+	send_buff[0]= PICC_CMD_SEL_CL1;
+	send_buff[1]= 0x20;
+
+	memset(recv_buff,0,sizeof(recv_buff));
+
+	result = pdc->TransceiveData(pdc, send_buff, send_size,
+			recv_buff, &recv_size, NULL, 0,
+			&coll_pos, send_crc, false);
+
+
+	if (result == STATUS_COLLISION) {
+		uint8_t valid_bytes = coll_pos / 8;
+		uint8_t valid_bits = coll_pos % 8;
+
+
+
+		send_buff[0]= PICC_CMD_SEL_CL1;
+
+		send_buff[1]= ((2 + valid_bytes) << 4) ;
+		send_buff[1]|= valid_bits;
+		memcpy ( send_buff + 2, recv_buff, valid_bytes + 1);
+		send_size = 3 + valid_bytes;
+		memset(recv_buff,0,sizeof(recv_buff));
+
+
+
+		result = pdc->TransceiveData(pdc, send_buff, send_size,
+					recv_buff, &recv_size, &valid_bits, 0,
+					&coll_pos, send_crc, false);
+
+		// with 2 PICCS in the field, we should now have success
+		// (and a SAK telling us to enter the next cascade level.
+
+		if (result) {
+			return result;
+		}
+		return result;
+
+
+//		// Now we split
+//		// So we get one entry with the collision bit set to 1, and the next set to 0
+//		// TODO, handle the indices so we can handle multiple collisions next
+//		memcpy ( picc_array[0]->uid, recv_buff, valid_bytes + 1);
+//		memcpy ( picc_array[1]->uid, recv_buff, valid_bytes + 1);
+//		picc_array[1]->uid[valid_bytes+1] ^= 1 << valid_bits;
+//		// We should move the valid bytes/bits into the picc
+//		// and make this function recursive
+
+	}
+
+
+
+
+}
+
+
 /**
  * Transmits a REQuest command, Type A. Invites PICCs in state IDLE to go to READY and prepare for anticollision or selection. 7 bit frame.
  * Beware: When two PICCs are in the field at the same time I often get STATUS_TIMEOUT - probably due do bad antenna design.
@@ -146,13 +275,13 @@ rc52x_result_t PICC_Select(bs_pdc_t *pdc, picc_t *picc, uint8_t validBits) {
 		case 1:
 			buffer[0] = PICC_CMD_SEL_CL1;
 			uidIndex = 0;
-			useCascadeTag = validBits && picc->size > 4;// When we know that the UID has more than 4 uint8_ts
+			useCascadeTag = validBits && picc->uid_size > 4;// When we know that the UID has more than 4 uint8_ts
 			break;
 
 		case 2:
 			buffer[0] = PICC_CMD_SEL_CL2;
 			uidIndex = 3;
-			useCascadeTag = validBits && picc->size > 7;// When we know that the UID has more than 7 uint8_ts
+			useCascadeTag = validBits && picc->uid_size > 7;// When we know that the UID has more than 7 uint8_ts
 			break;
 
 		case 3:
@@ -171,7 +300,7 @@ rc52x_result_t PICC_Select(bs_pdc_t *pdc, picc_t *picc, uint8_t validBits) {
 		if (currentLevelKnownBits < 0) {
 			currentLevelKnownBits = 0;
 		}
-		// Copy the known bits from uid->uidByte[] to buffer[]
+		// Copy the known bits from uid->uid[] to buffer[]
 		index = 2; // destination index in buffer[]
 		if (useCascadeTag) {
 			buffer[index++] = PICC_CMD_CT;
@@ -184,7 +313,7 @@ rc52x_result_t PICC_Select(bs_pdc_t *pdc, picc_t *picc, uint8_t validBits) {
 				BytesToCopy = maxBytes;
 			}
 			for (count = 0; count < BytesToCopy; count++) {
-				buffer[index++] = picc->uidByte[uidIndex + count];
+				buffer[index++] = picc->uid[uidIndex + count];
 			}
 		}
 		// Now that the data has been copied we need to include the 8 bits in CT in currentLevelKnownBits
@@ -222,7 +351,8 @@ rc52x_result_t PICC_Select(bs_pdc_t *pdc, picc_t *picc, uint8_t validBits) {
 				sendCRC = false;
 			}
 
-			rxAlign = txLastBits;// Having a separate variable is overkill. But it makes the next line easier to read.
+			//??rxAlign = txLastBits;// Having a separate variable is overkill. But it makes the next line easier to read.
+			rxAlign = 0;
 			uint8_t collisionPos;
 			// Transmit the buffer and receive the response.
 			result = pdc->TransceiveData(pdc, buffer, bufferUsed,
@@ -255,11 +385,11 @@ rc52x_result_t PICC_Select(bs_pdc_t *pdc, picc_t *picc, uint8_t validBits) {
 
 		// We do not check the CBB - it was constructed by us above.
 
-		// Copy the found UID uint8_ts from buffer[] to uid->uidByte[]
+		// Copy the found UID uint8_ts from buffer[] to uid->uid[]
 		index = (buffer[2] == PICC_CMD_CT) ? 3 : 2; // source index in buffer[]
 		BytesToCopy = (buffer[2] == PICC_CMD_CT) ? 3 : 4;
 		for (count = 0; count < BytesToCopy; count++) {
-			picc->uidByte[uidIndex + count] = buffer[index++];
+			picc->uid[uidIndex + count] = buffer[index++];
 		}
 
 		// Check response SAK (Select Acknowledge)
@@ -288,8 +418,8 @@ rc52x_result_t PICC_Select(bs_pdc_t *pdc, picc_t *picc, uint8_t validBits) {
 		}
 	} // End of while (!uidComplete)
 
-	// Set correct uid->size
-	picc->size = 3 * cascadeLevel + 1;
+	// Set correct uid->uid_size
+	picc->uid_size = 3 * cascadeLevel + 1;
 
 	return STATUS_OK;
 } // End PICC_Select()
@@ -337,7 +467,31 @@ int PICC_RATS(bs_pdc_t *pdc, picc_t *picc) {
 	if (status)
 		return status;
 
+	picc->iso14443_4_pcb = 2;
 	return status;
+
+}
+
+int PICC_APDU (bs_pdc_t *pdc, picc_t *picc,
+		uint8_t CLA,uint8_t INS,uint8_t P1,uint8_t P2,uint8_t Lc,uint8_t *Data,uint8_t Le,
+		void* recv_buffer, size_t *recv_size) {
+		uint8_t send_buffer[7 + Lc];
+		int offset = 0;
+		send_buffer[offset++] = picc->iso14443_4_pcb;
+		picc->iso14443_4_pcb ^= 1;
+		send_buffer[offset++] = CLA;
+		send_buffer[offset++] = INS;
+		send_buffer[offset++] = P1;
+		send_buffer[offset++] = P2;
+		if (Lc && Data) {
+			send_buffer[offset++] = Lc;
+
+			memcpy(send_buffer + offset++, Data, Lc);
+		}
+		send_buffer[Lc+offset++] = Le;
+		return pdc->TransceiveData(pdc, send_buffer, offset, recv_buffer, recv_size, NULL,
+					0, NULL, true, true);
+
 
 }
 
@@ -360,62 +514,70 @@ int MIFARE_GET_VERSION(bs_pdc_t *pdc, picc_t *picc) {
 
 int DESFIRE_GET_VERSION(bs_pdc_t *pdc, picc_t *picc) {
 	rc52x_result_t result;
-	size_t backsize = 10;
+//	size_t backsize = 10;
+////	{
+////		uint8_t buffer[7] = { 0x00, 0xA4, 0x00, 0x00, 0x00, 0x00 };
+////
+////
+////
+////
+////		result = pdc->TransceiveData(pdc, buffer, 6,
+////				&picc->version_response, &backsize, NULL, 0, NULL, true, true);
+////
+////	}
+//
 //	{
-//		uint8_t buffer[7] = { 0x00, 0xA4, 0x00, 0x00, 0x00, 0x00 };
+//		uint8_t send_buffer[7] = { 0x02, 0x90, 0x60, 0x00, 0x00, 0x00 };
 //
+//		// ADPU must be prefixed with a 0x02
+//		// This is a "Protocol Control Byte"
 //
+//		// Answer will also be prefixed with 0x02
+//		// and suffixed with a status code 0x91 0xAF
 //
+//		uint8_t response_buffer[20];
+//		backsize = sizeof(response_buffer);
 //
-//		result = pdc->TransceiveData(pdc, buffer, 6,
-//				&picc->version_response, &backsize, NULL, 0, NULL, true, true);
+//		result = pdc->TransceiveData(pdc, send_buffer, 6, response_buffer,
+//				&backsize, NULL, 0, NULL, true, true);
+//		if (0 == result && backsize == 10 && response_buffer[8] == 0x91
+//				&& response_buffer[9] == 0xAF) {
+//			memcpy((&picc->version_response) + 1, response_buffer + 1, 9);
+//
+//			send_buffer[2] = 0xAF;
+//
+//			int countdown = 5;
+//			while (response_buffer[9] == 0xAF && backsize == 10) {
+//
+//				send_buffer[0] ^= 1;
+//				backsize = sizeof(response_buffer);
+//				memset (response_buffer, 0, sizeof(response_buffer));
+//				result = pdc->TransceiveData(pdc, send_buffer, 6,
+//						response_buffer, &backsize, NULL, 0, NULL, true, true);
+//
+//				countdown--;
+//				if (!countdown)
+//					break;
+//			}
+//
+//			if (0 == result && backsize == 10 && response_buffer[8] == 0x91
+//					&& response_buffer[9] == 0x00) {
+//				return 0;
+//			}
+//
+//		}
 //
 //	}
-
-	{
-		uint8_t send_buffer[7] = { 0x02, 0x90, 0x60, 0x00, 0x00, 0x00 };
-
-		// ADPU must be prefixed with a 0x02
-		// This is a "Protocol Control Byte"
-
-		// Answer will also be prefixed with 0x02
-		// and suffixed with a status code 0x91 0xAF
-
-		uint8_t response_buffer[20];
-		backsize = sizeof(response_buffer);
-
-		result = pdc->TransceiveData(pdc, send_buffer, 6, response_buffer,
-				&backsize, NULL, 0, NULL, true, true);
-		if (0 == result && backsize == 10 && response_buffer[8] == 0x91
-				&& response_buffer[9] == 0xAF) {
-			memcpy((&picc->version_response) + 1, response_buffer + 1, 9);
-
-			send_buffer[2] = 0xAF;
-
-			int countdown = 5;
-			while (response_buffer[9] == 0xAF && backsize == 10) {
-
-				send_buffer[0] ^= 1;
-				backsize = sizeof(response_buffer);
-				memset (response_buffer, 0, sizeof(response_buffer));
-				result = pdc->TransceiveData(pdc, send_buffer, 6,
-						response_buffer, &backsize, NULL, 0, NULL, true, true);
-
-				countdown--;
-				if (!countdown)
-					break;
-			}
-
-			if (0 == result && backsize == 10 && response_buffer[8] == 0x91
-					&& response_buffer[9] == 0x00) {
-				return 0;
-			}
-
-		}
-
-	}
-
-	return -1;
+//
+//	return -1;
+	uint8_t response_buffer[20];
+	size_t response_size  = sizeof(response_buffer);
+	result=PICC_APDU(pdc, picc, 0x90, 0x60, 0x00, 0x00, 0x00,NULL, 0x00,  response_buffer, &response_size);
+	 response_size  = sizeof(response_buffer);
+	 result=PICC_APDU(pdc, picc,0x90, 0xAF, 0x00, 0x00, 0x00,NULL, 0x00,  response_buffer, &response_size);
+	 response_size  = sizeof(response_buffer);
+	 result=PICC_APDU(pdc, picc, 0x90, 0xAF, 0x00, 0x00, 0x00,NULL, 0x00,  response_buffer, &response_size);
+	return result;
 
 }
 
@@ -467,7 +629,7 @@ int MIFARE_READ(bs_pdc_t *pdc, picc_t *picc, int page, uint8_t *data) {
 		}
 		return result;
 	}
-	if (backsize != 10) {
+	if (backsize != 16) {
 		return STATUS_ERROR;
 	}
 	return result;
@@ -488,19 +650,6 @@ int MFU_Write(bs_pdc_t *pdc, picc_t *picc, int page, uint8_t *data) {
 
 	result = pdc->TransceiveData(pdc, buffer, 6, backBuffer, &backsize,
 			&validBits, 0, NULL, true, false);
-
-// Fixed: validBits was uninitialised
-//	// On RC522:
-//	// Expecting valid bits = 4, value 0xA
-//	// Getting   valid bits = 6, value 0x28
-//
-//	// on RC663:
-//	// Getting expected results
-//
-//	if ( 1 == backsize && validBits > 4) {
-//		*backBuffer >>= (validBits - 4);
-//		validBits = 4;
-//	}
 
 	if (STATUS_OK == result && 1 == backsize && 4 == validBits) {
 		// We've received a status in stead of data

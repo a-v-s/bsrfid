@@ -116,9 +116,9 @@ int pn53x_find_card(pn53x_t *pn53x, picc_t *picc){
 		picc->atqa.as_uint8[0] = response.frame.data[2];
 		picc->atqa.as_uint8[1] = response.frame.data[3];
 		picc->sak.as_uint8 = response.frame.data[4];
-		picc->size = response.frame.data[5];
-		if (picc->size > 10) picc->size = 10; // Crop it if it is longer, should not occur
-		memcpy(picc->uidByte, response.frame.data + 6, picc->size);
+		picc->uid_size = response.frame.data[5];
+		if (picc->uid_size > 10) picc->uid_size = 10; // Crop it if it is longer, should not occur
+		memcpy(picc->uid, response.frame.data + 6, picc->uid_size);
 		return 0;
 	} else {
 		// no card found
