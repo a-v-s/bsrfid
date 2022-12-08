@@ -91,4 +91,7 @@ rc52x_result_t PICC_REQA_or_WUPA(bs_pdc_t *pdc, uint8_t command, ///< The comman
 		uint8_t *bufferATQA, ///< The buffer to store the ATQA (Answer to request) in
 		size_t *bufferSize///< Buffer uid_size, at least two bytes. Also number of bytes returned if STATUS_OK.
 		);
+
+int MIFARE_READ(bs_pdc_t *pdc, picc_t *picc, int page, uint8_t *data);
+int MFU_Write(bs_pdc_t *pdc, picc_t *picc, int page, uint8_t *data) ;
 #endif /* BSRFID_CARDS_PICC_H_ */

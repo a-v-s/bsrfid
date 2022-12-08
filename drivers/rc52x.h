@@ -190,6 +190,7 @@ int mfrc522_recv(rc52x_t *rc52x, uint8_t reg, uint8_t *data, size_t amount);
 int mfrc522_send(rc52x_t *rc52x, uint8_t reg, uint8_t *data, size_t amount);
 void rc52x_reset(rc52x_t *rc52x);
 int rc52x_get_chip_version(rc52x_t *rc52x, uint8_t *chip_id);
+const char* rc52x_get_chip_name(rc52x_t *rc52x);
 
 
 
