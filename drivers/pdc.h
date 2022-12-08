@@ -35,8 +35,8 @@ typedef pdc_result_t rc52x_result_t;
 
 
 
-typedef int (*TransceiveData_f)(void *pdc, uint8_t *sendData, size_t sendLen,
-		uint8_t *backData, size_t *backLen, uint8_t *validBits,
+typedef int (*TransceiveData_f)(void *pdc, void *sendData, size_t sendLen,
+		void *backData, size_t *backLen, uint8_t *validBits,
 		uint8_t rxAlign, uint8_t *collisionPos, bool sendCRC, bool recvCRC);
 
 typedef int (*SetBitFraming_f)(void *pdc, int rxAlign, int txLastBits);

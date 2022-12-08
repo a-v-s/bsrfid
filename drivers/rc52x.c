@@ -70,7 +70,7 @@ rc52x_ref_status_t rc52x_self_test(rc52x_t *rc52x) {
 	if (result)
 		return rc52x_ref_status_error;
 
-	const char* ref = NULL;
+	const uint8_t* ref = NULL;
 	switch (chip_id) {
 
 	case 0x80:

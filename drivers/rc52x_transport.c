@@ -40,6 +40,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <string.h>
 
 #include "rc52x.h"
 
@@ -90,7 +91,10 @@ int mfrc522_recv(rc52x_t *rc52x, uint8_t reg, uint8_t *data, size_t amount) {
 				else
 					addr = tmpval;
 				break;
-
+			default:
+				// This is already handled above... thus this case is unreachable
+				// but esp-idf is a strict and forces this useless case
+				return -1;
 			}
 
 		}

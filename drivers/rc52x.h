@@ -1,50 +1,48 @@
-/******************************************************************************\
+/******************************************************************************
+ File:         rc52x.h
+ Author:       André van Schoubroeck
+ License:      MIT
 
-File:         rc52x.h
-Author:       André van Schoubroeck
-License:      MIT
+ This implements the RC522 family of RFID reader ICs
 
-This implements the RC522 family of RFID reader ICs
+ * NXP MFRC522         (ISO/IEC14443A)
+ * NXP MFRC523         (ISO/IEC14443A,ISO/IEC14443B)
+ * NXP PN512           (ISO/IEC14443A,ISO/IEC14443B, FeliCa)
+ * FUDAN FM17522E      (ISO/IEC14443A)
+ * Other compatibles
+ ********************************************************************************
+ MIT License
 
-* NXP MFRC522         (ISO/IEC14443A)
-* NXP MFRC523         (ISO/IEC14443A,ISO/IEC14443B)
-* NXP PN512           (ISO/IEC14443A,ISO/IEC14443B, FeliCa)
-* FUDAN FM17522E      (ISO/IEC14443A)
-* Other compatibles 
-********************************************************************************
-MIT License
+ Copyright (c) 2020 André van Schoubroeck <andre@blaatschaap.be>
 
-Copyright (c) 2020 André van Schoubroeck <andre@blaatschaap.be>
+ Permission is hereby granted, free of charge, to any person obtaining a copy
+ of this software and associated documentation files (the "Software"), to deal
+ in the Software without restriction, including without limitation the rights
+ to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ copies of the Software, and to permit persons to whom the Software is
+ furnished to do so, subject to the following conditions:
+ The above copyright notice and this permission notice shall be included in all
+ copies or substantial portions of the Software.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-********************************************************************************
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ SOFTWARE.
+ ********************************************************************************
 
 
-MFRC522 only supports ISO 14443-A
-MFRC523 also supports ISO 14443-A, ISO 14443-B
-  PN512 also supports ISO 14443-A, ISO 14443-B, JIS X 6319-4
+ MFRC522 only supports ISO 14443-A
+ MFRC523 also supports ISO 14443-A, ISO 14443-B
+ PN512 also supports ISO 14443-A, ISO 14443-B, JIS X 6319-4
 
-As the MFRC522 is the commonly available hardware on eBay and AliExpress, that
-is the hardware I have available. Support for the features of the other chips
-will be limited due missing hardware. 
+ As the MFRC522 is the commonly available hardware on eBay and AliExpress, that
+ is the hardware I have available. Support for the features of the other chips
+ will be limited due missing hardware.
 
-*******************************************************************************/
-
+ *******************************************************************************/
 
 /**
  * Based upon "Library to use Arduino MFRC522 module." https://github.com/miguelbalboa/rfid
@@ -56,7 +54,6 @@ will be limited due missing hardware.
  * Please read this file for an overview and then MFRC522.cpp for comments on the specific functions.
  */
 
-
 #ifndef _MFCR522_H_
 #define _MFCR522_H_
 
@@ -64,20 +61,10 @@ will be limited due missing hardware.
 #include "iso14443a.h"
 #include "iso14443b.h"
 
-
-
 #include "rc52x_transport.h"
 
 #include "pdc.h"
-typedef bs_pdc_t rc52x_t ;
-
-
-
-
-
-
-
-
+typedef bs_pdc_t rc52x_t;
 
 //------------------------------------------------------------------------------
 // Regisers
@@ -145,7 +132,6 @@ typedef bs_pdc_t rc52x_t ;
 #define RC52X_REG_TestDAC2Reg        (0x3A)
 #define RC52X_REG_TestADCReg         (0x3B)
 
-
 //------------------------------------------------------------------------------
 // Register Helper
 // -----------------------------------------------------------------------------
@@ -156,7 +142,6 @@ typedef bs_pdc_t rc52x_t ;
 #define RC52X_REG_CRCResultReg       (MFRC_SequentialAddr + MFRC_CRCResultReg_Hi)
 #define RC52X_REG_TCounterVal        (MFRC_SequentialAddr + MFRC_TCounterVal_Hi)
 #define RC52X_REG_TReloadReg			(MFRC_SequentialAddr + RC52X_REG_TReloadReg_Hi)
-
 
 //------------------------------------------------------------------------------
 // Commands
@@ -177,21 +162,17 @@ typedef bs_pdc_t rc52x_t ;
 #define RC52X_CMD_MFAuthent          (0b1110)
 #define RC52X_CMD_SoftReset          (0b1111)
 
-
 #define RC52X_TIMEOUT_ms			(40)
 
-
-uint8_t rc52x_communicate_with_picc(rc52x_t *rc52x,
-		uint8_t command,///< The command to execute. One of the RC52X_Command enums.
-		uint8_t waitIRq,///< The bits in the ComIrqReg register that signals successful completion of the command.
+uint8_t rc52x_communicate_with_picc(rc52x_t *rc52x, uint8_t command, ///< The command to execute. One of the RC52X_Command enums.
+		uint8_t waitIRq, ///< The bits in the ComIrqReg register that signals successful completion of the command.
 		uint8_t *sendData,	///< Pointer to the data to transfer to the FIFO.
 		uint8_t sendLen,		///< Number of bytes to transfer to the FIFO.
 		uint8_t *backData,///< NULL or pointer to buffer if data should be read back after executing the command.
 		uint8_t *backLen,///< In: Max number of bytes to write to *backData. Out: The number of bytes returned.
 		uint8_t *validBits,	///< In/Out: The number of valid bits in the last byte. 0 for 8 valid bits.
 		uint8_t rxAlign ///< In: Defines the bit position in backData[0] for the first bit received. Default 0.
-		) ;
-
+		);
 
 int mfrc522_send(rc52x_t *rc52x, uint8_t reg, uint8_t *data, size_t amount);
 int rc52x_set_reg8(rc52x_t *rc52x, uint8_t reg, uint8_t value);
@@ -199,15 +180,23 @@ int rc52x_get_reg8(rc52x_t *rc52x, uint8_t reg, uint8_t *value);
 int rc52x_and_reg8(rc52x_t *rc52x, uint8_t reg, uint8_t value);
 int rc52x_or_reg8(rc52x_t *rc52x, uint8_t reg, uint8_t value);
 
+void rc52x_init(rc52x_t *rc52x) ;
+
+
+rc52x_result_t rc52x_set_bit_framing(bs_pdc_t *pdc, int rxAlign,
+		int txLastBits);
+
+int mfrc522_recv(rc52x_t *rc52x, uint8_t reg, uint8_t *data, size_t amount);
+int mfrc522_send(rc52x_t *rc52x, uint8_t reg, uint8_t *data, size_t amount);
+void rc52x_reset(rc52x_t *rc52x);
+int rc52x_get_chip_version(rc52x_t *rc52x, uint8_t *chip_id);
 
 
 
-#include <stdint.h>
-
-#include "rc52x.h"
-
-
-
+///---
+//  Below are old style function names from before the port
+/// these have to be removed:
+///---
 
 // MFRC522 RxGain[2:0] masks, defines the receiver's signal voltage gain factor (on the PCD).
 // Described in 9.3.3.6 / table 98 of the datasheet at http://www.nxp.com/documents/data_sheet/MFRC522.pdf
@@ -224,8 +213,6 @@ enum RC52X_RxGain {
 	RxGain_avg = 0x04 << 4,	// 100b - 33 dB, average, convenience for RxGain_33dB
 	RxGain_max = 0x07 << 4// 111b - 48 dB, maximum, convenience for RxGain_48dB
 };
-
-
 
 // MIFARE constants that does not fit anywhere else
 enum MIFARE_Misc {
@@ -294,11 +281,9 @@ rc52x_result_t PICC_REQA_or_WUPA(rc52x_t *rc52x, uint8_t command,
 rc52x_result_t PICC_Select(rc52x_t *rc52x, picc_t *uid, uint8_t validBits);
 rc52x_result_t PICC_HaltA(rc52x_t *rc52x);
 
+///---
 
-
-rc52x_result_t rc52x_set_bit_framing(bs_pdc_t*pdc, int rxAlign, int txLastBits);
 
 
 #endif // _MFCR522_H_
-
 

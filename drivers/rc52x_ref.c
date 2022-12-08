@@ -5,6 +5,8 @@
  *      Author: andre
  */
 
+#include <stdint.h>
+
 //----------------------------------------------------------------------------
 // Version 0.0 (0x90)
 // Philips Semiconductors; Preliminary Specification Revision 2.0 - 01 August 2005; 16.1 self-test

@@ -6,6 +6,9 @@
  */
 
 #include "picc.h"
+
+#include <string.h>
+
 #include "pdc.h"
 
 pdc_result_t picc_reqa(bs_pdc_t * pdc, picc_t * picc) {
@@ -133,7 +136,7 @@ pdc_result_t picc_anticol_iso14443a(bs_pdc_t * pdc, picc_t * picc_array, int *pi
 
 
 
-
+	return -1;
 }
 
 
@@ -581,11 +584,6 @@ int DESFIRE_GET_VERSION(bs_pdc_t *pdc, picc_t *picc) {
 
 }
 
-//
-
-int MIFARE_AUTHA(bs_pdc_t *pdc, picc_t *picc, int page) {
-// TODO / PDC Specific
-}
 
 int MIFARE_READ(bs_pdc_t *pdc, picc_t *picc, int page, uint8_t *data) {
 	uint8_t buffer[4];
