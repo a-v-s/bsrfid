@@ -8,6 +8,11 @@
 #include "rc66x.h"
 
 #include "bshal_spim.h"
+#include "bshal_gpio.h"
+
+#include "rc66x_transport.h"
+
+#include <string.h>
 
 // expecting 0x18 or 0x1A
 int rc66x_get_chip_version(rc66x_t *rc66x, uint8_t *chip_id) {
@@ -23,8 +28,6 @@ void rc66x_antenna_off(rc66x_t *rc66x) {
 }
 
 void rc66x_reset(rc66x_t *rc66x) {
-	// TODO:  Extract reset pin from SPI struct
-	//			 Current version in SPI struct stores polarity, use it
 
 	// Note this one reset is active high!
 	bshal_gpio_write_pin(rc66x->transport_instance.spim->rs_pin,
@@ -32,6 +35,7 @@ void rc66x_reset(rc66x_t *rc66x) {
 	rc66x->delay_ms(1);
 	bshal_gpio_write_pin(rc66x->transport_instance.spim->rs_pin,
 			!rc66x->transport_instance.spim->rs_pol);
+
 }
 
 void rc66x_init(rc66x_t *rc66x) {

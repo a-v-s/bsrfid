@@ -202,3 +202,5 @@ rc66x_result_t rc66x_transceive(rc66x_t *rc66x,uint8_t *sendData,
 		bool sendCRC ,
 		bool recvCRC
 		);
+
+void rc66x_init(rc66x_t *rc66x);

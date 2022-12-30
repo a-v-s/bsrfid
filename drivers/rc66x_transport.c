@@ -40,6 +40,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <string.h>
 
 #include "rc66x.h"
 
@@ -49,27 +50,27 @@ int rc66x_recv(rc66x_t *rc66x, uint8_t reg, uint8_t *data, size_t amount) {
 	if (!rc66x->transport_instance.raw)
 		return -1;
 
-
-		switch (rc66x->transport_type) {
-		case bshal_transport_spi:
-		case bshal_transport_uart:
-			addr = (reg << RC66X_SPI_REG_SHIFT) | RC66X_DIR_RECV;
-			memset(data, addr, amount);
-			break;
-		case bshal_transport_i2c:
-			addr = reg;
-			break;
-		default:
-			return -1;
-		}
-
+	switch (rc66x->transport_type) {
+	case bshal_transport_spi:
+	case bshal_transport_uart:
+		addr = (reg << RC66X_SPI_REG_SHIFT) | RC66X_DIR_RECV;
+		memset(data, addr, amount);
+		break;
+	case bshal_transport_i2c:
+		addr = reg;
+		break;
+	default:
+		return -1;
+	}
 
 	switch (rc66x->transport_type) {
 	case bshal_transport_spi:
-		result = bshal_spim_transmit(rc66x->transport_instance.spim, &addr, 1, true);
+		result = bshal_spim_transmit(rc66x->transport_instance.spim, &addr, 1,
+				true);
 		if (result)
 			return result;
-		return bshal_spim_transceive(rc66x->transport_instance.spim, data, amount, false);
+		return bshal_spim_transceive(rc66x->transport_instance.spim, data,
+				amount, false);
 		break;
 	default:
 		return -1;
@@ -85,11 +86,12 @@ int rc66x_send(rc66x_t *rc66x, uint8_t reg, uint8_t *data, size_t amount) {
 	switch (rc66x->transport_type) {
 	case bshal_transport_spi:
 		addr = (reg << RC66X_SPI_REG_SHIFT) | RC66X_DIR_SEND;
-		result = bshal_spim_transmit(rc66x->transport_instance.spim, &addr, 1, true);
+		result = bshal_spim_transmit(rc66x->transport_instance.spim, &addr, 1,
+				true);
 		if (result)
 			return result;
-		result = bshal_spim_transmit(rc66x->transport_instance.spim, data, amount,
-				false);
+		result = bshal_spim_transmit(rc66x->transport_instance.spim, data,
+				amount, false);
 		return result;
 		break;
 	case bshal_transport_i2c:

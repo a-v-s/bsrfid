@@ -94,4 +94,7 @@ rc52x_result_t PICC_REQA_or_WUPA(bs_pdc_t *pdc, uint8_t command, ///< The comman
 
 int MIFARE_READ(bs_pdc_t *pdc, picc_t *picc, int page, uint8_t *data);
 int MFU_Write(bs_pdc_t *pdc, picc_t *picc, int page, uint8_t *data) ;
+
+rc52x_result_t PICC_RequestA(bs_pdc_t *pdc, picc_t *picc);
+rc52x_result_t PICC_Select(bs_pdc_t *pdc, picc_t *picc, uint8_t validBits);
 #endif /* BSRFID_CARDS_PICC_H_ */
